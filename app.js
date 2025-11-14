@@ -727,6 +727,12 @@ class TranscriptionApp {
     
     // WebLLM 사용 가능 여부 확인
     isWebLLMAvailable() {
+        // window.webllmObject가 설정되어 있으면 사용
+        if (window.webllmObject) {
+            return true;
+        }
+        
+        // 여러 방법으로 WebLLM 확인
         return typeof webllm !== 'undefined' || 
                typeof WebLLM !== 'undefined' || 
                window.webllm !== undefined || 
@@ -759,18 +765,35 @@ class TranscriptionApp {
             
             // WebLLM 엔진 초기화 - 여러 방법으로 시도
             let WebLLMEngine = null;
-            if (typeof webllm !== 'undefined') {
+            
+            // window.webllmObject가 설정되어 있으면 우선 사용
+            if (window.webllmObject) {
+                WebLLMEngine = window.webllmObject;
+                console.log('WebLLM 엔진을 window.webllmObject에서 찾았습니다.');
+            } else if (typeof webllm !== 'undefined') {
                 WebLLMEngine = webllm;
+                console.log('WebLLM 엔진을 webllm에서 찾았습니다.');
             } else if (typeof WebLLM !== 'undefined') {
                 WebLLMEngine = WebLLM;
+                console.log('WebLLM 엔진을 WebLLM에서 찾았습니다.');
             } else if (window.webllm) {
                 WebLLMEngine = window.webllm;
+                console.log('WebLLM 엔진을 window.webllm에서 찾았습니다.');
             } else if (window.WebLLM) {
                 WebLLMEngine = window.WebLLM;
+                console.log('WebLLM 엔진을 window.WebLLM에서 찾았습니다.');
             }
             
             if (!WebLLMEngine) {
-                throw new Error('WebLLM 엔진을 찾을 수 없습니다.');
+                console.error('WebLLM 엔진을 찾을 수 없습니다. 전역 변수 확인:', {
+                    webllm: typeof webllm,
+                    WebLLM: typeof WebLLM,
+                    window_webllm: typeof window.webllm,
+                    window_WebLLM: typeof window.WebLLM,
+                    window_webllmObject: typeof window.webllmObject,
+                    window_webllmLoaded: window.webllmLoaded
+                });
+                throw new Error('WebLLM 엔진을 찾을 수 없습니다. 브라우저 콘솔을 확인해주세요.');
             }
             
             // 모델 생성

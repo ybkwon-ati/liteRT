@@ -246,18 +246,77 @@
                 const script = document.createElement('script');
                 script.src = webllmSources[currentSourceIndex];
                 script.onload = function() {
-                    window.webllmLoaded = true;
-                    console.log('WebLLM loaded from:', webllmSources[currentSourceIndex]);
-                    console.log('WebLLM types:', typeof webllm, typeof WebLLM, window.webllm, window.WebLLM);
+                    // WebLLM이 실제로 로드되었는지 확인 (여러 방법 시도)
+                    let webllmFound = false;
+                    let webllmObject = null;
                     
-                    // WebLLM이 로드되었음을 알리기 위해 이벤트 발생
-                    window.dispatchEvent(new CustomEvent('webllm-loaded'));
-                    
-                    // 앱 인스턴스가 있으면 AI 모델 초기화 시도
-                    if (window.appInstance && typeof window.appInstance.initAIModel === 'function') {
+                    // 여러 방법으로 WebLLM 확인
+                    if (typeof webllm !== 'undefined') {
+                        webllmFound = true;
+                        webllmObject = webllm;
+                        console.log('WebLLM found as: webllm');
+                    } else if (typeof WebLLM !== 'undefined') {
+                        webllmFound = true;
+                        webllmObject = WebLLM;
+                        console.log('WebLLM found as: WebLLM');
+                    } else if (window.webllm) {
+                        webllmFound = true;
+                        webllmObject = window.webllm;
+                        console.log('WebLLM found as: window.webllm');
+                    } else if (window.WebLLM) {
+                        webllmFound = true;
+                        webllmObject = window.WebLLM;
+                        console.log('WebLLM found as: window.WebLLM');
+                    } else {
+                        // 스크립트는 로드되었지만 전역 변수가 없는 경우, 잠시 대기
                         setTimeout(() => {
-                            window.appInstance.initAIModelWhenReady();
-                        }, 100);
+                            if (typeof webllm !== 'undefined') {
+                                webllmFound = true;
+                                webllmObject = webllm;
+                            } else if (typeof WebLLM !== 'undefined') {
+                                webllmFound = true;
+                                webllmObject = WebLLM;
+                            }
+                            
+                            if (webllmFound) {
+                                window.webllmLoaded = true;
+                                window.webllmObject = webllmObject;
+                                console.log('WebLLM loaded from:', webllmSources[currentSourceIndex]);
+                                window.dispatchEvent(new CustomEvent('webllm-loaded'));
+                                
+                                if (window.appInstance && typeof window.appInstance.initAIModelWhenReady === 'function') {
+                                    setTimeout(() => {
+                                        window.appInstance.initAIModelWhenReady();
+                                    }, 100);
+                                }
+                            } else {
+                                console.error('WebLLM 스크립트는 로드되었지만 전역 변수를 찾을 수 없습니다.');
+                                console.log('전역 변수 확인:', {
+                                    webllm: typeof webllm,
+                                    WebLLM: typeof WebLLM,
+                                    window_webllm: typeof window.webllm,
+                                    window_WebLLM: typeof window.WebLLM
+                                });
+                            }
+                        }, 500);
+                        return;
+                    }
+                    
+                    if (webllmFound) {
+                        window.webllmLoaded = true;
+                        window.webllmObject = webllmObject;
+                        console.log('WebLLM loaded from:', webllmSources[currentSourceIndex]);
+                        console.log('WebLLM object:', webllmObject);
+                        
+                        // WebLLM이 로드되었음을 알리기 위해 이벤트 발생
+                        window.dispatchEvent(new CustomEvent('webllm-loaded'));
+                        
+                        // 앱 인스턴스가 있으면 AI 모델 초기화 시도
+                        if (window.appInstance && typeof window.appInstance.initAIModelWhenReady === 'function') {
+                            setTimeout(() => {
+                                window.appInstance.initAIModelWhenReady();
+                            }, 100);
+                        }
                     }
                 };
                 script.onerror = function() {
