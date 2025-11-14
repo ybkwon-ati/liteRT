@@ -3,6 +3,10 @@
 class TranscriptionApp {
     constructor() {
         this.recognition = null;
+        this.permissionCheckInterval = null;
+        this.isPageVisible = true;
+        this.retryCount = 0;
+        this.maxRetries = 3;
         
         // LiteRT.js 반응형 데이터 모델
         this.model = {
@@ -12,7 +16,8 @@ class TranscriptionApp {
             history: [],
             status: '대기 중...',
             statusClass: 'waiting',
-            language: '언어: 한국어'
+            language: '언어: 한국어',
+            micPermission: 'prompt' // 'granted', 'denied', 'prompt'
         };
         
         this.init();
@@ -40,6 +45,10 @@ class TranscriptionApp {
         // 이벤트 핸들러 설정
         this.setupEventHandlers();
         this.setupRecognitionHandlers();
+        
+        // 페이지 가시성 및 권한 모니터링 설정
+        this.setupVisibilityHandlers();
+        this.setupPermissionMonitoring();
     }
 
     initReactiveSystem() {
@@ -91,6 +100,130 @@ class TranscriptionApp {
         clearBtn.addEventListener('click', () => this.clearTranscription());
     }
 
+    // 페이지 가시성 핸들러 설정 (탭 전환 감지)
+    setupVisibilityHandlers() {
+        document.addEventListener('visibilitychange', () => {
+            this.isPageVisible = !document.hidden;
+            
+            if (!this.isPageVisible && this.model.isRecording) {
+                // 탭이 비활성화되면 일시 중지
+                console.log('페이지가 비활성화되어 전사를 일시 중지합니다.');
+            } else if (this.isPageVisible && this.model.isRecording) {
+                // 탭이 다시 활성화되면 권한이 있으면 재시작 (재요청 안함)
+                if (this.model.micPermission === 'granted') {
+                    this.restartTranscription();
+                } else {
+                    // 권한이 없으면 중지
+                    this.updateModel({
+                        status: '마이크 권한이 필요합니다.',
+                        statusClass: 'error'
+                    });
+                    this.stopTranscription();
+                }
+            }
+        });
+    }
+
+    // 마이크 권한 모니터링 설정 (조용히 확인만, 재요청 안함)
+    setupPermissionMonitoring() {
+        // 주기적으로 권한 상태만 확인 (10초마다, 팝업 없이)
+        this.permissionCheckInterval = setInterval(() => {
+            if (this.model.isRecording && this.isPageVisible) {
+                this.checkMicrophonePermissionSilent();
+            }
+        }, 10000);
+    }
+
+    // 마이크 권한 확인 (조용히, 팝업 없이)
+    async checkMicrophonePermissionSilent() {
+        try {
+            // MediaDevices API를 사용한 권한 확인 (팝업 없이)
+            if (navigator.permissions && navigator.permissions.query) {
+                const result = await navigator.permissions.query({ name: 'microphone' });
+                const permissionState = result.state;
+                
+                this.updateModel({
+                    micPermission: permissionState === 'granted' ? 'granted' : 
+                                  permissionState === 'denied' ? 'denied' : 'prompt'
+                });
+                
+                // 권한이 해제되었으면 상태만 업데이트 (재요청 안함)
+                if (permissionState !== 'granted' && this.model.isRecording) {
+                    console.log('마이크 권한 상태 확인:', permissionState);
+                    // 재요청하지 않고 상태만 업데이트
+                }
+                
+                return permissionState === 'granted';
+            }
+            return false;
+        } catch (error) {
+            // 조용히 실패 처리
+            return false;
+        }
+    }
+
+    // 마이크 권한 확인 (사용자 액션 시에만 사용)
+    async checkMicrophonePermission() {
+        try {
+            // MediaDevices API를 사용한 권한 확인
+            if (navigator.permissions && navigator.permissions.query) {
+                const result = await navigator.permissions.query({ name: 'microphone' });
+                const permissionState = result.state;
+                
+                this.updateModel({
+                    micPermission: permissionState === 'granted' ? 'granted' : 
+                                  permissionState === 'denied' ? 'denied' : 'prompt'
+                });
+                
+                return permissionState === 'granted';
+            }
+            return false;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    // 마이크 권한 요청
+    async requestMicrophonePermission() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop()); // 즉시 중지
+            this.updateModel({ 
+                micPermission: 'granted',
+                status: '마이크 권한이 허용되었습니다.',
+                statusClass: 'waiting'
+            });
+            this.retryCount = 0;
+            return true;
+        } catch (error) {
+            console.error('마이크 권한 요청 실패:', error);
+            this.updateModel({ 
+                micPermission: 'denied',
+                status: '마이크 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.',
+                statusClass: 'error'
+            });
+            return false;
+        }
+    }
+
+    // 전사 재시작 (권한 확인 후)
+    restartTranscription() {
+        if (!this.model.isRecording) return;
+        
+        try {
+            if (this.recognition) {
+                this.recognition.stop();
+                setTimeout(() => {
+                    if (this.model.isRecording && this.model.micPermission === 'granted') {
+                        this.recognition.start();
+                    }
+                }, 500);
+            }
+        } catch (error) {
+            console.error('전사 재시작 오류:', error);
+        }
+    }
+
     setupRecognitionHandlers() {
         // 음성 인식 시작
         this.recognition.onstart = () => {
@@ -134,19 +267,30 @@ class TranscriptionApp {
             console.error('음성 인식 오류:', event.error);
             
             let errorMessage = '오류가 발생했습니다.';
+            let shouldRetry = false;
+            
             switch(event.error) {
                 case 'no-speech':
                     errorMessage = '음성이 감지되지 않습니다.';
+                    // 음성 없음은 재시도하지 않음
                     break;
                 case 'audio-capture':
                     errorMessage = '마이크를 찾을 수 없습니다.';
+                    shouldRetry = true;
                     break;
                 case 'not-allowed':
-                    errorMessage = '마이크 권한이 필요합니다.';
-                    break;
+                    errorMessage = '마이크 권한이 필요합니다. 전사를 중지합니다.';
+                    // 자동 재요청 안함, 사용자가 버튼을 눌러야 함
+                    this.updateModel({ micPermission: 'denied' });
+                    this.stopTranscription();
+                    return;
                 case 'network':
-                    errorMessage = '네트워크 오류가 발생했습니다.';
+                    errorMessage = '네트워크 오류가 발생했습니다. 재시도합니다...';
+                    shouldRetry = true;
                     break;
+                case 'aborted':
+                    // 중단된 경우는 재시도하지 않음
+                    return;
             }
             
             this.updateModel({
@@ -154,18 +298,59 @@ class TranscriptionApp {
                 statusClass: 'error'
             });
             
-            // 오류 발생 시 자동으로 중지
-            if (this.model.isRecording) {
+            // 재시도 가능한 오류이고 최대 재시도 횟수 내라면 재시도
+            if (shouldRetry && this.model.isRecording && this.retryCount < this.maxRetries) {
+                this.retryCount++;
+                setTimeout(() => {
+                    if (this.model.isRecording && this.model.micPermission === 'granted') {
+                        try {
+                            this.recognition.start();
+                        } catch (error) {
+                            console.error('재시도 오류:', error);
+                        }
+                    }
+                }, 2000);
+            } else if (this.retryCount >= this.maxRetries) {
+                // 최대 재시도 횟수 초과 시 중지
+                this.updateModel({
+                    status: '오류가 지속되어 전사를 중지합니다.',
+                    statusClass: 'error'
+                });
                 this.stopTranscription();
+                this.retryCount = 0;
             }
         };
 
         // 음성 인식 종료
         this.recognition.onend = () => {
-            if (this.model.isRecording) {
-                // 자동으로 다시 시작 (연속 전사)
-                this.recognition.start();
-            } else {
+            if (this.model.isRecording && this.isPageVisible) {
+                // 권한이 허용되어 있으면 자동으로 다시 시작 (연속 전사)
+                // 권한 재요청은 하지 않음
+                if (this.model.micPermission === 'granted') {
+                    try {
+                        this.recognition.start();
+                        this.retryCount = 0; // 성공 시 재시도 카운터 리셋
+                    } catch (error) {
+                        console.error('자동 재시작 오류:', error);
+                        // 권한 오류면 중지 (재요청 안함)
+                        if (error.message.includes('not allowed') || error.message.includes('permission')) {
+                            this.updateModel({
+                                status: '마이크 권한이 필요합니다.',
+                                statusClass: 'error',
+                                micPermission: 'denied'
+                            });
+                            this.stopTranscription();
+                        }
+                    }
+                } else {
+                    // 권한이 없으면 중지 (재요청 안함)
+                    this.updateModel({
+                        status: '마이크 권한이 필요합니다.',
+                        statusClass: 'error'
+                    });
+                    this.stopTranscription();
+                }
+            } else if (!this.model.isRecording) {
                 this.updateModel({
                     status: '대기 중...',
                     statusClass: 'waiting'
@@ -189,12 +374,28 @@ class TranscriptionApp {
         this.updateStatusDisplay();
     }
 
-    startTranscription() {
+    async startTranscription() {
         if (!this.recognition) {
             alert('음성 인식을 초기화할 수 없습니다.');
             return;
         }
 
+        // 먼저 마이크 권한 확인 및 요청
+        const hasPermission = await this.checkMicrophonePermission();
+        
+        if (!hasPermission) {
+            const granted = await this.requestMicrophonePermission();
+            if (!granted) {
+                this.updateModel({
+                    status: '마이크 권한이 필요합니다. 브라우저 설정에서 권한을 허용해주세요.',
+                    statusClass: 'error'
+                });
+                return;
+            }
+        }
+
+        this.retryCount = 0; // 재시도 카운터 리셋
+        
         try {
             this.recognition.start();
         } catch (error) {
@@ -203,21 +404,43 @@ class TranscriptionApp {
                 // 이미 시작된 경우 무시
                 return;
             }
-            alert('전사를 시작할 수 없습니다: ' + error.message);
+            
+            // 권한 관련 오류면 재요청
+            if (error.message.includes('not allowed') || error.message.includes('permission')) {
+                await this.requestMicrophonePermission();
+            } else {
+                this.updateModel({
+                    status: '전사를 시작할 수 없습니다: ' + error.message,
+                    statusClass: 'error'
+                });
+            }
         }
     }
 
     stopTranscription() {
         this.updateModel({ isRecording: false });
+        this.retryCount = 0; // 재시도 카운터 리셋
         
         if (this.recognition) {
-            this.recognition.stop();
+            try {
+                this.recognition.stop();
+            } catch (error) {
+                console.error('전사 중지 오류:', error);
+            }
         }
         
         // 현재 전사 내용을 기록에 저장
         if (this.model.transcriptionText.trim()) {
             this.saveToHistory();
         }
+    }
+
+    // 정리 함수 (페이지 언로드 시 호출)
+    cleanup() {
+        if (this.permissionCheckInterval) {
+            clearInterval(this.permissionCheckInterval);
+        }
+        this.stopTranscription();
     }
 
     clearTranscription() {
@@ -295,7 +518,16 @@ class TranscriptionApp {
 }
 
 // 앱 초기화
+let appInstance = null;
+
 document.addEventListener('DOMContentLoaded', () => {
-    new TranscriptionApp();
+    appInstance = new TranscriptionApp();
+});
+
+// 페이지 언로드 시 정리
+window.addEventListener('beforeunload', () => {
+    if (appInstance) {
+        appInstance.cleanup();
+    }
 });
 
