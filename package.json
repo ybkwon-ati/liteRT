@@ -1,0 +1,22 @@
+{
+  "name": "literT-realtime-transcription",
+  "version": "1.0.0",
+  "description": "LiteRT.js를 이용한 실시간 전사 애플리케이션",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx http-server . -p 8080 -o",
+    "start": "npx http-server . -p 8080 -o"
+  },
+  "keywords": [
+    "transcription",
+    "speech-recognition",
+    "realtime",
+    "literT"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
+

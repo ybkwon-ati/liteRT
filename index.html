@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiteRT 실시간 전사</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎤 LiteRT 실시간 전사</h1>
+            <p class="subtitle">음성을 실시간으로 텍스트로 변환합니다</p>
+        </header>
+
+        <main>
+            <div class="control-panel">
+                <button id="startBtn" class="btn btn-primary">
+                    <span class="btn-icon">▶</span>
+                    전사 시작
+                </button>
+                <button id="stopBtn" class="btn btn-secondary" disabled>
+                    <span class="btn-icon">⏹</span>
+                    전사 중지
+                </button>
+                <button id="clearBtn" class="btn btn-danger">
+                    <span class="btn-icon">🗑</span>
+                    기록 지우기
+                </button>
+            </div>
+
+            <div class="status-bar">
+                <span id="status" class="status">대기 중...</span>
+                <span id="language" class="language">언어: 한국어</span>
+            </div>
+
+            <div class="transcription-area">
+                <div id="transcription" class="transcription-text">
+                    전사 결과가 여기에 표시됩니다...
+                </div>
+            </div>
+
+            <div class="history-section">
+                <h2>전사 기록</h2>
+                <div id="history" class="history-list"></div>
+            </div>
+        </main>
+
+        <footer>
+            <p>LiteRT.js 기반 실시간 전사 애플리케이션</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/litert@latest/dist/litert.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+
