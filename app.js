@@ -393,7 +393,14 @@ class TranscriptionApp {
 
         try {
             // WebLLM이 로드되었는지 확인
-            const WebLLMEngine = await this.waitForWebLLM(5000).catch(() => null);
+            let WebLLMEngine = null;
+            try {
+                WebLLMEngine = await this.waitForWebLLM(8000);
+            } catch (error) {
+                console.error('WebLLM 로드 오류:', error);
+                downloadedList.innerHTML = `<div class="loading-models">WebLLM이 로드되지 않았습니다.<br>${error.message}</div>`;
+                return;
+            }
             
             if (!WebLLMEngine) {
                 downloadedList.innerHTML = '<div class="loading-models">WebLLM이 로드되지 않았습니다.</div>';
@@ -487,15 +494,50 @@ class TranscriptionApp {
     }
 
     // WebLLM 로드 대기
-    async waitForWebLLM(maxWaitTime = 10000) {
+    async waitForWebLLM(maxWaitTime = 15000) {
         const startTime = Date.now();
-        while (typeof webllm === 'undefined' && typeof WebLLM === 'undefined') {
-            if (Date.now() - startTime > maxWaitTime) {
-                throw new Error('WebLLM 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+        
+        // WebLLM이 이미 로드되어 있는지 확인
+        if (typeof webllm !== 'undefined') {
+            return webllm;
+        }
+        if (typeof WebLLM !== 'undefined') {
+            return WebLLM;
+        }
+        if (window.webllm) {
+            return window.webllm;
+        }
+        
+        // 로드 대기
+        while (true) {
+            // 여러 방법으로 WebLLM 확인
+            if (typeof webllm !== 'undefined') {
+                return webllm;
             }
+            if (typeof WebLLM !== 'undefined') {
+                return WebLLM;
+            }
+            if (window.webllm) {
+                return window.webllm;
+            }
+            if (window.WebLLM) {
+                return window.WebLLM;
+            }
+            
+            // 타임아웃 확인
+            if (Date.now() - startTime > maxWaitTime) {
+                // 더 자세한 에러 정보 제공
+                const errorMsg = 'WebLLM 라이브러리가 로드되지 않았습니다. ';
+                const suggestions = [
+                    '페이지를 새로고침해주세요.',
+                    '네트워크 연결을 확인해주세요.',
+                    '브라우저 콘솔에서 에러 메시지를 확인해주세요.'
+                ].join(' ');
+                throw new Error(errorMsg + suggestions);
+            }
+            
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        return webllm || WebLLM;
     }
 
     // 선택한 모델 로드
@@ -603,11 +645,18 @@ class TranscriptionApp {
             this.isModelLoading = false;
             this.isModelReady = false;
             
-            if (modelStatusText) {
-                modelStatusText.textContent = '모델 로드 실패: ' + error.message;
+            let errorMessage = error.message || '알 수 없는 오류가 발생했습니다.';
+            
+            // WebLLM 로드 오류인 경우 더 자세한 메시지 제공
+            if (errorMessage.includes('WebLLM 라이브러리가 로드되지 않았습니다')) {
+                errorMessage = 'WebLLM 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.';
             }
             
-            alert('모델 로드 중 오류가 발생했습니다: ' + error.message);
+            if (modelStatusText) {
+                modelStatusText.textContent = '모델 로드 실패: ' + errorMessage;
+            }
+            
+            alert(`모델 로드 중 오류가 발생했습니다:\n${errorMessage}`);
         } finally {
             if (loadBtn) loadBtn.disabled = false;
         }
@@ -1701,17 +1750,33 @@ function initApp() {
 }
 
 async function waitForWebLLMAndInit() {
-    // WebLLM이 로드될 때까지 최대 5초 대기
+    // WebLLM이 로드될 때까지 최대 10초 대기
     let attempts = 0;
-    const maxAttempts = 50; // 5초 (100ms * 50)
+    const maxAttempts = 100; // 10초 (100ms * 100)
     
-    while ((typeof webllm === 'undefined' && typeof WebLLM === 'undefined') && attempts < maxAttempts) {
+    // WebLLM 로드 확인 함수
+    const isWebLLMLoaded = () => {
+        return typeof webllm !== 'undefined' || 
+               typeof WebLLM !== 'undefined' || 
+               window.webllm !== undefined || 
+               window.WebLLM !== undefined ||
+               window.webllmLoaded === true;
+    };
+    
+    while (!isWebLLMLoaded() && attempts < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
     }
     
-    if (typeof webllm === 'undefined' && typeof WebLLM === 'undefined') {
+    if (!isWebLLMLoaded()) {
         console.warn('WebLLM이 로드되지 않았습니다. AI 기능이 제한될 수 있습니다.');
+        console.warn('webllm:', typeof webllm);
+        console.warn('WebLLM:', typeof WebLLM);
+        console.warn('window.webllm:', window.webllm);
+        console.warn('window.WebLLM:', window.WebLLM);
+        console.warn('window.webllmLoaded:', window.webllmLoaded);
+    } else {
+        console.log('WebLLM 로드 확인 완료');
     }
     
     appInstance = new TranscriptionApp();

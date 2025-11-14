@@ -227,8 +227,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/litert@latest/dist/litert.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/index.js" 
-            onload="window.webllmLoaded = true; console.log('WebLLM loaded');"
-            onerror="console.error('WebLLM failed to load');"></script>
+            onload="window.webllmLoaded = true; console.log('WebLLM loaded', typeof webllm, typeof WebLLM, window.webllm, window.WebLLM);"
+            onerror="console.error('WebLLM failed to load'); window.webllmLoadError = true;"></script>
     <script>
         // 강력한 캐시 버스팅 - 타임스탬프 사용
         (function() {
