@@ -94,6 +94,11 @@ main {
     color: white;
 }
 
+.btn-info {
+    background: #17a2b8;
+    color: white;
+}
+
 .btn-icon {
     font-size: 1.2em;
 }

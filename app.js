@@ -138,9 +138,11 @@ class TranscriptionApp {
         const customModelId = document.getElementById('customModelId');
         const searchBtn = document.getElementById('searchBtn');
 
-        if (modelConfigBtn) {
-            modelConfigBtn.addEventListener('click', () => this.openModelConfig());
-        }
+        // 모델 설정 버튼 이벤트 (여러 개 있을 수 있으므로 모두 처리)
+        const modelConfigBtns = document.querySelectorAll('#modelConfigBtn');
+        modelConfigBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.openModelConfig());
+        });
         if (closeModal) {
             closeModal.addEventListener('click', () => this.closeModelConfig());
         }
