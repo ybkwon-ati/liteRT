@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>LiteRT 실시간 전사</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
     <div class="container">
@@ -27,7 +30,7 @@
                     <span class="btn-icon">🗑</span>
                     기록 지우기
                 </button>
-                <button id="modelConfigBtn" class="btn btn-info">
+                <button id="modelConfigBtn" class="btn btn-info" style="display: inline-flex !important; visibility: visible !important;">
                     <span class="btn-icon">🤖</span>
                     모델 설정
                 </button>
@@ -151,7 +154,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/litert@latest/dist/litert.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/index.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=2"></script>
 </body>
 </html>
 

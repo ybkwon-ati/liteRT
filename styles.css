@@ -97,6 +97,9 @@ main {
 .btn-info {
     background: #17a2b8;
     color: white;
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .btn-icon {
