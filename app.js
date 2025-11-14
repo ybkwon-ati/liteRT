@@ -85,6 +85,9 @@ class TranscriptionApp {
         // 저장된 기록 불러오기
         this.loadSavedHistory();
         
+        // 기록 관리 초기화 (메인 화면에 바로 표시)
+        this.initHistoryManagement();
+        
         // AI 모델 초기화는 WebLLM이 로드된 후에 수행
         this.initAIModelWhenReady();
         
@@ -121,7 +124,8 @@ class TranscriptionApp {
             
             // history 변경 감지
             LiteRT.watch(() => this.reactiveModel.history, () => {
-                this.updateHistoryDisplay();
+                this.renderHistoryManageList();
+                this.renderCalendar();
             });
             
             // status 변경 감지
@@ -226,24 +230,12 @@ class TranscriptionApp {
 
     // 기록 관리 이벤트 핸들러 설정
     setupHistoryHandlers() {
-        const historyManageBtn = document.getElementById('historyManageBtn');
-        const closeHistoryModal = document.getElementById('closeHistoryModal');
-        const closeHistoryManageBtn = document.getElementById('closeHistoryManageBtn');
         const historySearchBtn = document.getElementById('historySearchBtn');
         const clearDateFilter = document.getElementById('clearDateFilter');
         const applyDateRange = document.getElementById('applyDateRange');
         const prevMonth = document.getElementById('prevMonth');
         const nextMonth = document.getElementById('nextMonth');
 
-        if (historyManageBtn) {
-            historyManageBtn.addEventListener('click', () => this.openHistoryManage());
-        }
-        if (closeHistoryModal) {
-            closeHistoryModal.addEventListener('click', () => this.closeHistoryManage());
-        }
-        if (closeHistoryManageBtn) {
-            closeHistoryManageBtn.addEventListener('click', () => this.closeHistoryManage());
-        }
         if (historySearchBtn) {
             historySearchBtn.addEventListener('click', () => this.searchHistory());
         }
@@ -266,16 +258,6 @@ class TranscriptionApp {
             historySearch.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     this.searchHistory();
-                }
-            });
-        }
-
-        // 모달 외부 클릭 시 닫기
-        const modal = document.getElementById('historyManageModal');
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.closeHistoryManage();
                 }
             });
         }
@@ -1581,45 +1563,12 @@ class TranscriptionApp {
         }
     }
 
-    updateHistoryDisplay() {
-        const historyElement = document.getElementById('history');
-        
-        if (this.model.history.length === 0) {
-            historyElement.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">기록이 없습니다.</p>';
-            return;
-        }
-        
-        // 최근 5개만 표시
-        const recentHistory = this.model.history.slice(0, 5);
-        
-        historyElement.innerHTML = recentHistory.map(item => `
-            <div class="history-item" data-history-id="${item.id}">
-                <div class="history-item-header">
-                    <div class="history-item-time">${item.date} ${item.time}</div>
-                    ${item.duration ? `<div class="history-item-duration">⏱ ${item.duration}분</div>` : ''}
-                </div>
-                <div class="history-item-name">${item.name || '전사 기록'}</div>
-                <div class="history-item-text">${item.text.substring(0, 100)}${item.text.length > 100 ? '...' : ''}</div>
-            </div>
-        `).join('');
-    }
+    // updateHistoryDisplay는 더 이상 사용하지 않음 (메인 화면에서 historyManageList 사용)
 
-    // 기록 관리 모달 열기
-    openHistoryManage() {
-        const modal = document.getElementById('historyManageModal');
-        if (modal) {
-            modal.style.display = 'flex';
-            this.renderCalendar();
-            this.renderHistoryManageList();
-        }
-    }
-
-    // 기록 관리 모달 닫기
-    closeHistoryManage() {
-        const modal = document.getElementById('historyManageModal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
+    // 기록 관리 초기화 (메인 화면에서 바로 표시)
+    initHistoryManagement() {
+        this.renderCalendar();
+        this.renderHistoryManageList();
     }
 
     // 달력 렌더링
@@ -1814,8 +1763,8 @@ class TranscriptionApp {
             this.model.history = this.model.history.filter(h => h.id !== historyId);
             this.updateModel({ history: [...this.model.history] });
             this.saveHistoryToStorage();
-            this.updateHistoryDisplay();
             this.renderHistoryManageList();
+            this.renderCalendar();
         }
     }
 

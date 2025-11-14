@@ -252,19 +252,48 @@ main {
 
 .history-section {
     margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 15px;
 }
 
 .history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 .history-section h2 {
-    margin: 0;
+    margin: 0 0 20px 0;
     color: #667eea;
     font-size: 1.5em;
+}
+
+.history-filters {
+    margin-bottom: 25px;
+    padding: 15px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-view {
+    margin-bottom: 25px;
+    padding: 15px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.history-list-section {
+    padding: 15px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.history-list-section h4 {
+    margin: 0 0 15px 0;
+    color: #667eea;
+    font-size: 1.2em;
 }
 
 .btn-history-manage {
