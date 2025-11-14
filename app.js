@@ -8,6 +8,18 @@ class TranscriptionApp {
         this.retryCount = 0;
         this.maxRetries = 3;
         
+        // 마이크 레벨 모니터링
+        this.audioContext = null;
+        this.analyser = null;
+        this.microphone = null;
+        this.micLevelInterval = null;
+        this.micLevel = 0;
+        
+        // AI 모델 (WebLLM)
+        this.llmEngine = null;
+        this.isModelLoading = false;
+        this.isModelReady = false;
+        
         // LiteRT.js 반응형 데이터 모델
         this.model = {
             isRecording: false,
@@ -17,7 +29,8 @@ class TranscriptionApp {
             status: '대기 중...',
             statusClass: 'waiting',
             language: '언어: 한국어',
-            micPermission: 'prompt' // 'granted', 'denied', 'prompt'
+            micPermission: 'prompt', // 'granted', 'denied', 'prompt'
+            micLevel: 0
         };
         
         this.init();
@@ -49,6 +62,12 @@ class TranscriptionApp {
         // 페이지 가시성 및 권한 모니터링 설정
         this.setupVisibilityHandlers();
         this.setupPermissionMonitoring();
+        
+        // AI 모델 초기화
+        this.initAIModel();
+        
+        // AI 이벤트 핸들러 설정
+        this.setupAIHandlers();
     }
 
     initReactiveSystem() {
@@ -98,6 +117,270 @@ class TranscriptionApp {
         startBtn.addEventListener('click', () => this.startTranscription());
         stopBtn.addEventListener('click', () => this.stopTranscription());
         clearBtn.addEventListener('click', () => this.clearTranscription());
+    }
+
+    // AI 이벤트 핸들러 설정
+    setupAIHandlers() {
+        const translateBtn = document.getElementById('translateBtn');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const closeAiResult = document.getElementById('closeAiResult');
+
+        translateBtn.addEventListener('click', () => this.translateText());
+        summarizeBtn.addEventListener('click', () => this.summarizeText());
+        closeAiResult.addEventListener('click', () => this.closeAIResult());
+    }
+
+    // AI 모델 초기화 (WebLLM)
+    async initAIModel() {
+        try {
+            // WebLLM이 로드되었는지 확인
+            if (typeof webllm === 'undefined' && typeof WebLLM === 'undefined') {
+                console.warn('WebLLM이 로드되지 않았습니다. AI 기능을 사용할 수 없습니다.');
+                return;
+            }
+            
+            this.updateModel({
+                status: 'AI 모델 로딩 중...',
+                statusClass: 'waiting'
+            });
+            
+            this.isModelLoading = true;
+            
+            // WebLLM 엔진 초기화
+            const WebLLMEngine = webllm || WebLLM;
+            
+            // 모델 생성 (경량 모델 사용)
+            this.llmEngine = await WebLLMEngine.create({
+                model: "TinyLlama-1.1B-Chat-v0.4", // 경량 모델
+                initProgressCallback: (report) => {
+                    console.log('모델 로딩 진행:', report);
+                    if (report.progress) {
+                        this.updateModel({
+                            status: `AI 모델 로딩 중... ${Math.round(report.progress * 100)}%`,
+                            statusClass: 'waiting'
+                        });
+                    }
+                }
+            });
+            
+            this.isModelReady = true;
+            this.isModelLoading = false;
+            
+            this.updateModel({
+                status: 'AI 모델 준비 완료',
+                statusClass: 'waiting'
+            });
+            
+            console.log('AI 모델 로딩 완료');
+        } catch (error) {
+            console.error('AI 모델 초기화 오류:', error);
+            this.isModelLoading = false;
+            this.isModelReady = false;
+            this.updateModel({
+                status: 'AI 모델 로딩 실패 (기본 모드로 실행)',
+                statusClass: 'waiting'
+            });
+        }
+    }
+
+    // 마이크 레벨 모니터링 시작
+    async startMicLevelMonitoring() {
+        try {
+            // AudioContext 생성
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // 마이크 스트림 가져오기
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // AnalyserNode 생성
+            this.analyser = this.audioContext.createAnalyser();
+            this.analyser.fftSize = 256;
+            this.analyser.smoothingTimeConstant = 0.8;
+            
+            // 마이크 입력을 Analyser에 연결
+            this.microphone = this.audioContext.createMediaStreamSource(stream);
+            this.microphone.connect(this.analyser);
+            
+            // 마이크 레벨 업데이트 시작
+            this.updateMicLevel();
+            
+        } catch (error) {
+            console.error('마이크 레벨 모니터링 시작 오류:', error);
+        }
+    }
+
+    // 마이크 레벨 업데이트
+    updateMicLevel() {
+        if (!this.analyser) return;
+        
+        const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+        this.analyser.getByteFrequencyData(dataArray);
+        
+        // 평균 레벨 계산
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+        
+        // 0-100 범위로 정규화
+        this.micLevel = Math.min(100, Math.round((average / 255) * 100));
+        
+        // UI 업데이트
+        const micLevelFill = document.getElementById('micLevel');
+        const micLevelText = document.getElementById('micLevelText');
+        
+        if (micLevelFill) {
+            micLevelFill.style.width = this.micLevel + '%';
+        }
+        if (micLevelText) {
+            micLevelText.textContent = this.micLevel + '%';
+        }
+        
+        // 모델 업데이트
+        this.updateModel({ micLevel: this.micLevel });
+        
+        // 다음 프레임 요청
+        if (this.model.isRecording) {
+            requestAnimationFrame(() => this.updateMicLevel());
+        }
+    }
+
+    // 마이크 레벨 모니터링 중지
+    stopMicLevelMonitoring() {
+        if (this.micLevelInterval) {
+            cancelAnimationFrame(this.micLevelInterval);
+            this.micLevelInterval = null;
+        }
+        
+        if (this.microphone) {
+            this.microphone.disconnect();
+            this.microphone = null;
+        }
+        
+        if (this.audioContext && this.audioContext.state !== 'closed') {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
+        
+        // UI 리셋
+        const micLevelFill = document.getElementById('micLevel');
+        const micLevelText = document.getElementById('micLevelText');
+        
+        if (micLevelFill) {
+            micLevelFill.style.width = '0%';
+        }
+        if (micLevelText) {
+            micLevelText.textContent = '0%';
+        }
+        
+        this.micLevel = 0;
+        this.updateModel({ micLevel: 0 });
+    }
+
+    // 텍스트 번역
+    async translateText() {
+        const text = this.model.transcriptionText.trim();
+        
+        if (!text) {
+            alert('번역할 텍스트가 없습니다.');
+            return;
+        }
+
+        if (!this.isModelReady || !this.llmEngine) {
+            alert('AI 모델이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+            return;
+        }
+
+        const translateBtn = document.getElementById('translateBtn');
+        translateBtn.disabled = true;
+
+        try {
+            this.showAIResult('번역 중...', 'AI가 텍스트를 번역하고 있습니다...');
+            
+            const prompt = `다음 한국어 텍스트를 영어로 번역해주세요. 번역만 출력하고 다른 설명은 하지 마세요:\n\n${text}`;
+            
+            // WebLLM API 사용
+            const response = await this.llmEngine.chat({
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_gen_len: 500
+            });
+
+            const translatedText = response.message || response.text || response;
+            this.showAIResult('번역 결과', translatedText);
+            
+        } catch (error) {
+            console.error('번역 오류:', error);
+            this.showAIResult('번역 오류', '번역 중 오류가 발생했습니다: ' + error.message);
+        } finally {
+            translateBtn.disabled = false;
+        }
+    }
+
+    // 텍스트 요약
+    async summarizeText() {
+        const text = this.model.transcriptionText.trim();
+        
+        if (!text) {
+            alert('요약할 텍스트가 없습니다.');
+            return;
+        }
+
+        if (!this.isModelReady || !this.llmEngine) {
+            alert('AI 모델이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+            return;
+        }
+
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        summarizeBtn.disabled = true;
+
+        try {
+            this.showAIResult('요약 중...', 'AI가 텍스트를 요약하고 있습니다...');
+            
+            const prompt = `다음 텍스트를 간결하게 요약해주세요. 핵심 내용만 3-5문장으로 요약해주세요:\n\n${text}`;
+            
+            // WebLLM API 사용
+            const response = await this.llmEngine.chat({
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.5,
+                max_gen_len: 300
+            });
+
+            const summarizedText = response.message || response.text || response;
+            this.showAIResult('요약 결과', summarizedText);
+            
+        } catch (error) {
+            console.error('요약 오류:', error);
+            this.showAIResult('요약 오류', '요약 중 오류가 발생했습니다: ' + error.message);
+        } finally {
+            summarizeBtn.disabled = false;
+        }
+    }
+
+    // AI 결과 표시
+    showAIResult(title, content) {
+        const aiResultSection = document.getElementById('aiResultSection');
+        const aiResultTitle = document.getElementById('aiResultTitle');
+        const aiResult = document.getElementById('aiResult');
+        
+        if (aiResultTitle) aiResultTitle.textContent = title;
+        if (aiResult) {
+            if (content.includes('...')) {
+                aiResult.innerHTML = '<div class="ai-loading">' + content + '</div>';
+            } else {
+                aiResult.textContent = content;
+            }
+        }
+        if (aiResultSection) aiResultSection.style.display = 'block';
+    }
+
+    // AI 결과 닫기
+    closeAIResult() {
+        const aiResultSection = document.getElementById('aiResultSection');
+        if (aiResultSection) {
+            aiResultSection.style.display = 'none';
+        }
     }
 
     // 페이지 가시성 핸들러 설정 (탭 전환 감지)
@@ -396,6 +679,9 @@ class TranscriptionApp {
 
         this.retryCount = 0; // 재시도 카운터 리셋
         
+        // 마이크 레벨 모니터링 시작
+        await this.startMicLevelMonitoring();
+        
         try {
             this.recognition.start();
         } catch (error) {
@@ -421,6 +707,9 @@ class TranscriptionApp {
         this.updateModel({ isRecording: false });
         this.retryCount = 0; // 재시도 카운터 리셋
         
+        // 마이크 레벨 모니터링 중지
+        this.stopMicLevelMonitoring();
+        
         if (this.recognition) {
             try {
                 this.recognition.stop();
@@ -440,6 +729,7 @@ class TranscriptionApp {
         if (this.permissionCheckInterval) {
             clearInterval(this.permissionCheckInterval);
         }
+        this.stopMicLevelMonitoring();
         this.stopTranscription();
     }
 

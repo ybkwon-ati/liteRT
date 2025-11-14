@@ -34,10 +34,37 @@
                 <span id="language" class="language">언어: 한국어</span>
             </div>
 
+            <div class="mic-level-container">
+                <div class="mic-level-label">마이크 레벨</div>
+                <div class="mic-level-bar">
+                    <div id="micLevel" class="mic-level-fill"></div>
+                </div>
+                <span id="micLevelText" class="mic-level-text">0%</span>
+            </div>
+
             <div class="transcription-area">
+                <div class="transcription-header">
+                    <h3>전사 결과</h3>
+                    <div class="ai-actions">
+                        <button id="translateBtn" class="btn-ai" title="번역">
+                            🌐 번역
+                        </button>
+                        <button id="summarizeBtn" class="btn-ai" title="요약">
+                            📝 요약
+                        </button>
+                    </div>
+                </div>
                 <div id="transcription" class="transcription-text">
                     전사 결과가 여기에 표시됩니다...
                 </div>
+            </div>
+
+            <div id="aiResultSection" class="ai-result-section" style="display: none;">
+                <div class="ai-result-header">
+                    <h3 id="aiResultTitle">AI 처리 결과</h3>
+                    <button id="closeAiResult" class="btn-close">✕</button>
+                </div>
+                <div id="aiResult" class="ai-result-content"></div>
             </div>
 
             <div class="history-section">
@@ -52,6 +79,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/litert@latest/dist/litert.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/index.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
