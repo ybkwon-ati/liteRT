@@ -646,6 +646,69 @@ main {
     background: #f8f9fa;
 }
 
+/* 다운로드된 모델 탭 */
+.downloaded-models-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.downloaded-models-header h4 {
+    margin: 0;
+    color: #333;
+}
+
+.btn-refresh {
+    padding: 6px 12px;
+    border: 2px solid #667eea;
+    border-radius: 6px;
+    background: white;
+    color: #667eea;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.3s ease;
+}
+
+.btn-refresh:hover {
+    background: #667eea;
+    color: white;
+}
+
+.model-item-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.btn-model-action {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-model-load {
+    background: #667eea;
+    color: white;
+}
+
+.btn-model-load:hover {
+    background: #764ba2;
+}
+
+.model-item-current {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #28a745;
+    color: white;
+    border-radius: 12px;
+    font-size: 0.75em;
+    margin-left: 8px;
+}
+
 /* 모델 로딩 상태 */
 .model-loading-status {
     margin-top: 20px;

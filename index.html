@@ -60,6 +60,7 @@
                         <div class="model-source-tabs">
                             <button class="tab-btn active" data-tab="gallery">Edge Gallery</button>
                             <button class="tab-btn" data-tab="custom">직접 입력</button>
+                            <button class="tab-btn" data-tab="downloaded">다운로드된 모델</button>
                         </div>
 
                         <div id="galleryTab" class="tab-content active">
@@ -89,6 +90,21 @@
                                     <button class="preset-btn" data-model="Qwen2.5-0.5B-Instruct-q4f32_1">Qwen2.5-0.5B-Instruct (초경량)</button>
                                 </div>
                             </div>
+                        </div>
+
+                        <div id="downloadedTab" class="tab-content">
+                            <div class="downloaded-models-header">
+                                <h4>다운로드된 모델 목록</h4>
+                                <button id="refreshDownloadedBtn" class="btn-refresh">🔄 새로고침</button>
+                            </div>
+                            <div class="model-list-container">
+                                <div id="downloadedModelList" class="model-list">
+                                    <div class="loading-models">다운로드된 모델 확인 중...</div>
+                                </div>
+                            </div>
+                            <p class="model-hint" style="margin-top: 15px;">
+                                💡 모델은 브라우저의 IndexedDB에 저장됩니다. 모델 삭제는 브라우저 개발자 도구에서 IndexedDB를 직접 삭제해야 합니다.
+                            </p>
                         </div>
 
                         <div class="model-loading-status" id="modelLoadingStatus" style="display: none;">
@@ -153,14 +169,19 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/litert@latest/dist/litert.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/index.js" 
+            onload="window.webllmLoaded = true; console.log('WebLLM loaded');"
+            onerror="console.error('WebLLM failed to load');"></script>
     <script>
-        // 캐시 버스팅을 위한 동적 버전 추가
-        const version = new Date().getTime();
-        const script = document.createElement('script');
-        script.src = `app.js?v=${version}`;
-        script.type = 'text/javascript';
-        document.head.appendChild(script);
+        // 강력한 캐시 버스팅 - 타임스탬프 사용
+        (function() {
+            const timestamp = new Date().getTime();
+            const script = document.createElement('script');
+            script.src = `app.js?t=${timestamp}&v=3.0.0`;
+            script.type = 'text/javascript';
+            script.async = false;
+            document.head.appendChild(script);
+        })();
     </script>
 </body>
 </html>

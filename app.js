@@ -192,6 +192,12 @@ class TranscriptionApp {
         if (searchBtn) {
             searchBtn.addEventListener('click', () => this.searchModels());
         }
+
+        // 다운로드된 모델 새로고침 버튼
+        const refreshDownloadedBtn = document.getElementById('refreshDownloadedBtn');
+        if (refreshDownloadedBtn) {
+            refreshDownloadedBtn.addEventListener('click', () => this.loadDownloadedModels());
+        }
     }
 
     // AI 이벤트 핸들러 설정
@@ -223,6 +229,8 @@ class TranscriptionApp {
         if (modal) {
             modal.style.display = 'flex';
             this.loadAvailableModels();
+            // 다운로드된 모델 목록도 로드
+            this.loadDownloadedModels();
         }
     }
 
@@ -304,6 +312,108 @@ class TranscriptionApp {
         const searchInput = document.getElementById('modelSearch');
         const searchTerm = searchInput ? searchInput.value : '';
         this.renderModelList(this.availableModels, searchTerm);
+    }
+
+    // 다운로드된 모델 목록 로드
+    async loadDownloadedModels() {
+        const downloadedList = document.getElementById('downloadedModelList');
+        if (!downloadedList) return;
+
+        downloadedList.innerHTML = '<div class="loading-models">다운로드된 모델 확인 중...</div>';
+
+        try {
+            // WebLLM이 로드되었는지 확인
+            const WebLLMEngine = await this.waitForWebLLM(5000).catch(() => null);
+            
+            if (!WebLLMEngine) {
+                downloadedList.innerHTML = '<div class="loading-models">WebLLM이 로드되지 않았습니다.</div>';
+                return;
+            }
+
+            // IndexedDB에서 다운로드된 모델 확인
+            // WebLLM은 모델을 IndexedDB에 저장하므로, 저장된 모델 목록을 확인
+            const downloadedModels = [];
+            
+            // 현재 사용 중인 모델 추가
+            if (this.currentModelId) {
+                downloadedModels.push({
+                    id: this.currentModelId,
+                    name: this.getModelName(this.currentModelId),
+                    isCurrent: true,
+                    downloaded: true
+                });
+            }
+
+            // localStorage에 저장된 모델 히스토리 확인
+            try {
+                const modelHistory = JSON.parse(localStorage.getItem('webllm_model_history') || '[]');
+                modelHistory.forEach(modelId => {
+                    if (modelId !== this.currentModelId && !downloadedModels.find(m => m.id === modelId)) {
+                        downloadedModels.push({
+                            id: modelId,
+                            name: this.getModelName(modelId),
+                            isCurrent: false,
+                            downloaded: true
+                        });
+                    }
+                });
+            } catch (e) {
+                console.warn('모델 히스토리 로드 오류:', e);
+            }
+
+            if (downloadedModels.length === 0) {
+                downloadedList.innerHTML = '<div class="loading-models">다운로드된 모델이 없습니다. 모델을 다운로드하면 여기에 표시됩니다.</div>';
+                return;
+            }
+
+            // 다운로드된 모델 목록 렌더링
+            downloadedList.innerHTML = downloadedModels.map(model => `
+                <div class="model-item ${model.isCurrent ? 'selected' : ''}" data-model-id="${model.id}">
+                    <div class="model-item-name">
+                        ${model.name}
+                        ${model.isCurrent ? '<span class="model-item-current">현재 사용 중</span>' : ''}
+                    </div>
+                    <div class="model-item-desc">${model.id}</div>
+                    <div class="model-item-actions">
+                        ${!model.isCurrent ? `
+                            <button class="btn-model-action btn-model-load" data-action="load" data-model-id="${model.id}">
+                                로드
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // 로드 버튼 이벤트
+            downloadedList.querySelectorAll('.btn-model-load').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const modelId = e.target.dataset.modelId;
+                    if (modelId) {
+                        // 커스텀 모델 입력 필드에 설정하고 로드
+                        const customModelId = document.getElementById('customModelId');
+                        if (customModelId) {
+                            customModelId.value = modelId;
+                        }
+                        // 직접 입력 탭으로 전환
+                        this.switchTab('custom');
+                        // 모델 로드
+                        setTimeout(() => {
+                            this.loadSelectedModel();
+                        }, 100);
+                    }
+                });
+            });
+
+        } catch (error) {
+            console.error('다운로드된 모델 목록 로드 오류:', error);
+            downloadedList.innerHTML = '<div class="loading-models">모델 목록을 불러올 수 없습니다: ' + error.message + '</div>';
+        }
+    }
+
+    // 모델 이름 가져오기
+    getModelName(modelId) {
+        const model = this.availableModels.find(m => m.id === modelId);
+        return model ? model.name : modelId;
     }
 
     // WebLLM 로드 대기
@@ -437,6 +547,17 @@ class TranscriptionApp {
     saveModelConfig(modelId) {
         try {
             localStorage.setItem('webllm_model_id', modelId);
+            
+            // 모델 히스토리에 추가
+            const history = JSON.parse(localStorage.getItem('webllm_model_history') || '[]');
+            if (!history.includes(modelId)) {
+                history.push(modelId);
+                // 최대 10개까지만 저장
+                if (history.length > 10) {
+                    history.shift();
+                }
+                localStorage.setItem('webllm_model_history', JSON.stringify(history));
+            }
         } catch (error) {
             console.error('모델 설정 저장 오류:', error);
         }
