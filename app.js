@@ -1830,6 +1830,14 @@ async function waitForWebLLMAndInit() {
     
     appInstance = new TranscriptionApp();
     window.appInstance = appInstance; // 전역으로 노출
+    
+    // WebLLM 로드 이벤트 리스너 추가 (나중에 로드될 경우 대비)
+    window.addEventListener('webllm-loaded', () => {
+        if (appInstance && typeof appInstance.initAIModelWhenReady === 'function') {
+            console.log('WebLLM 로드 이벤트 수신 - AI 모델 초기화 시도');
+            appInstance.initAIModelWhenReady();
+        }
+    });
 }
 
 initApp();
