@@ -1020,16 +1020,25 @@ class TranscriptionApp {
                 stream: true,
             });
 
-            // 스트리밍 응답 처리
+            // 스트리밍 응답 처리 - 공식 문서 방법
+            // https://web.dev/articles/ai-chatbot-webllm?hl=ko
             let translatedText = '';
             for await (const chunk of chunks) {
+                // delta에 새 토큰만 포함되므로 직접 조합해야 함
                 const content = chunk.choices[0]?.delta?.content ?? '';
-                translatedText += content;
-                // 실시간으로 업데이트 (선택사항)
-                this.showAIResult('번역 중...', translatedText + '...');
+                if (content) {
+                    translatedText += content;
+                    // 실시간으로 업데이트하여 지각된 대기 시간 감소
+                    this.showAIResult('번역 중...', translatedText);
+                }
             }
             
-            this.showAIResult('번역 결과', translatedText);
+            // 최종 결과 표시
+            if (translatedText.trim()) {
+                this.showAIResult('번역 결과', translatedText);
+            } else {
+                throw new Error('번역 결과가 비어있습니다.');
+            }
             
         } catch (error) {
             console.error('번역 오류:', error);
@@ -1070,16 +1079,25 @@ class TranscriptionApp {
                 stream: true,
             });
 
-            // 스트리밍 응답 처리
+            // 스트리밍 응답 처리 - 공식 문서 방법
+            // https://web.dev/articles/ai-chatbot-webllm?hl=ko
             let summarizedText = '';
             for await (const chunk of chunks) {
+                // delta에 새 토큰만 포함되므로 직접 조합해야 함
                 const content = chunk.choices[0]?.delta?.content ?? '';
-                summarizedText += content;
-                // 실시간으로 업데이트 (선택사항)
-                this.showAIResult('요약 중...', summarizedText + '...');
+                if (content) {
+                    summarizedText += content;
+                    // 실시간으로 업데이트하여 지각된 대기 시간 감소
+                    this.showAIResult('요약 중...', summarizedText);
+                }
             }
             
-            this.showAIResult('요약 결과', summarizedText);
+            // 최종 결과 표시
+            if (summarizedText.trim()) {
+                this.showAIResult('요약 결과', summarizedText);
+            } else {
+                throw new Error('요약 결과가 비어있습니다.');
+            }
             
         } catch (error) {
             console.error('요약 오류:', error);
@@ -1090,6 +1108,8 @@ class TranscriptionApp {
     }
 
     // AI 결과 표시
+    // 공식 문서 권장사항: LLM 응답을 사용자 입력처럼 취급하고 안전하게 처리
+    // https://web.dev/articles/ai-chatbot-webllm?hl=ko
     showAIResult(title, content) {
         const aiResultSection = document.getElementById('aiResultSection');
         const aiResultTitle = document.getElementById('aiResultTitle');
@@ -1097,11 +1117,10 @@ class TranscriptionApp {
         
         if (aiResultTitle) aiResultTitle.textContent = title;
         if (aiResult) {
-            if (content.includes('...')) {
-                aiResult.innerHTML = '<div class="ai-loading">' + content + '</div>';
-            } else {
-                aiResult.textContent = content;
-            }
+            // 안전하게 텍스트만 표시 (HTML/JavaScript 실행 방지)
+            // 공식 문서: 생성된 HTML을 문서에 직접 추가하지 말고, 
+            // JavaScript 코드를 자동으로 eval()하지 말 것
+            aiResult.textContent = content;
         }
         if (aiResultSection) aiResultSection.style.display = 'block';
     }
