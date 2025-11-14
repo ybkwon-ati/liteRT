@@ -306,6 +306,18 @@ class TranscriptionApp {
         this.renderModelList(this.availableModels, searchTerm);
     }
 
+    // WebLLM 로드 대기
+    async waitForWebLLM(maxWaitTime = 10000) {
+        const startTime = Date.now();
+        while (typeof webllm === 'undefined' && typeof WebLLM === 'undefined') {
+            if (Date.now() - startTime > maxWaitTime) {
+                throw new Error('WebLLM 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return webllm || WebLLM;
+    }
+
     // 선택한 모델 로드
     async loadSelectedModel() {
         const modelList = document.getElementById('modelList');
@@ -337,9 +349,15 @@ class TranscriptionApp {
         // 로딩 UI 표시
         if (loadBtn) loadBtn.disabled = true;
         if (loadingStatus) loadingStatus.style.display = 'block';
-        if (modelStatusText) modelStatusText.textContent = '모델 다운로드 중...';
+        if (modelStatusText) modelStatusText.textContent = 'WebLLM 라이브러리 확인 중...';
 
         try {
+            // WebLLM이 로드될 때까지 대기
+            if (modelStatusText) modelStatusText.textContent = 'WebLLM 라이브러리 로드 대기 중...';
+            const WebLLMEngine = await this.waitForWebLLM();
+            
+            if (modelStatusText) modelStatusText.textContent = '기존 모델 정리 중...';
+
             // 기존 모델 정리
             if (this.llmEngine) {
                 try {
@@ -353,8 +371,7 @@ class TranscriptionApp {
             this.isModelReady = false;
             this.isModelLoading = true;
 
-            // WebLLM 엔진 초기화
-            const WebLLMEngine = webllm || WebLLM;
+            if (modelStatusText) modelStatusText.textContent = '모델 다운로드 중...';
             
             this.llmEngine = await WebLLMEngine.create({
                 model: selectedModelId,
@@ -1198,9 +1215,35 @@ class TranscriptionApp {
 // 앱 초기화
 let appInstance = null;
 
-document.addEventListener('DOMContentLoaded', () => {
+// WebLLM이 로드될 때까지 대기 후 앱 초기화
+function initApp() {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            waitForWebLLMAndInit();
+        });
+    } else {
+        waitForWebLLMAndInit();
+    }
+}
+
+async function waitForWebLLMAndInit() {
+    // WebLLM이 로드될 때까지 최대 5초 대기
+    let attempts = 0;
+    const maxAttempts = 50; // 5초 (100ms * 50)
+    
+    while ((typeof webllm === 'undefined' && typeof WebLLM === 'undefined') && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+    }
+    
+    if (typeof webllm === 'undefined' && typeof WebLLM === 'undefined') {
+        console.warn('WebLLM이 로드되지 않았습니다. AI 기능이 제한될 수 있습니다.');
+    }
+    
     appInstance = new TranscriptionApp();
-});
+}
+
+initApp();
 
 // 페이지 언로드 시 정리
 window.addEventListener('beforeunload', () => {
