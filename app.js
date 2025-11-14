@@ -698,11 +698,47 @@ class TranscriptionApp {
         }
     }
 
+    // WebLLM이 로드될 때까지 대기 후 AI 모델 초기화
+    async initAIModelWhenReady() {
+        // WebLLM이 이미 로드되어 있는지 확인
+        if (this.isWebLLMAvailable()) {
+            await this.initAIModel();
+            return;
+        }
+        
+        // WebLLM 로드 대기 (최대 15초)
+        const maxWaitTime = 15000;
+        const startTime = Date.now();
+        
+        const checkInterval = setInterval(async () => {
+            if (this.isWebLLMAvailable()) {
+                clearInterval(checkInterval);
+                await this.initAIModel();
+            } else if (Date.now() - startTime > maxWaitTime) {
+                clearInterval(checkInterval);
+                console.warn('WebLLM 로드 타임아웃');
+                const currentModelName = document.getElementById('currentModelName');
+                if (currentModelName) {
+                    currentModelName.textContent = 'WebLLM 로드 실패';
+                }
+            }
+        }, 200);
+    }
+    
+    // WebLLM 사용 가능 여부 확인
+    isWebLLMAvailable() {
+        return typeof webllm !== 'undefined' || 
+               typeof WebLLM !== 'undefined' || 
+               window.webllm !== undefined || 
+               window.WebLLM !== undefined ||
+               (window.webllmLoaded === true && (typeof webllm !== 'undefined' || typeof WebLLM !== 'undefined'));
+    }
+    
     // AI 모델 초기화 (WebLLM)
     async initAIModel() {
         try {
             // WebLLM이 로드되었는지 확인
-            if (typeof webllm === 'undefined' && typeof WebLLM === 'undefined') {
+            if (!this.isWebLLMAvailable()) {
                 console.warn('WebLLM이 로드되지 않았습니다. AI 기능을 사용할 수 없습니다.');
                 const currentModelName = document.getElementById('currentModelName');
                 if (currentModelName) {
@@ -721,8 +757,21 @@ class TranscriptionApp {
             
             this.isModelLoading = true;
             
-            // WebLLM 엔진 초기화
-            const WebLLMEngine = webllm || WebLLM;
+            // WebLLM 엔진 초기화 - 여러 방법으로 시도
+            let WebLLMEngine = null;
+            if (typeof webllm !== 'undefined') {
+                WebLLMEngine = webllm;
+            } else if (typeof WebLLM !== 'undefined') {
+                WebLLMEngine = WebLLM;
+            } else if (window.webllm) {
+                WebLLMEngine = window.webllm;
+            } else if (window.WebLLM) {
+                WebLLMEngine = window.WebLLM;
+            }
+            
+            if (!WebLLMEngine) {
+                throw new Error('WebLLM 엔진을 찾을 수 없습니다.');
+            }
             
             // 모델 생성
             this.llmEngine = await WebLLMEngine.create({
