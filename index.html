@@ -226,9 +226,41 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/litert@latest/dist/litert.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/index.js" 
-            onload="window.webllmLoaded = true; console.log('WebLLM loaded', typeof webllm, typeof WebLLM, window.webllm, window.WebLLM);"
-            onerror="console.error('WebLLM failed to load'); window.webllmLoadError = true;"></script>
+    <script>
+        // WebLLM 로드 - 여러 CDN 시도
+        (function() {
+            const webllmSources = [
+                'https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/index.js',
+                'https://unpkg.com/@mlc-ai/web-llm@latest/dist/index.js'
+            ];
+            
+            let currentSourceIndex = 0;
+            
+            function loadWebLLM() {
+                if (currentSourceIndex >= webllmSources.length) {
+                    console.error('WebLLM을 모든 CDN에서 로드할 수 없습니다.');
+                    window.webllmLoadError = true;
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = webllmSources[currentSourceIndex];
+                script.onload = function() {
+                    window.webllmLoaded = true;
+                    console.log('WebLLM loaded from:', webllmSources[currentSourceIndex]);
+                    console.log('WebLLM types:', typeof webllm, typeof WebLLM, window.webllm, window.WebLLM);
+                };
+                script.onerror = function() {
+                    console.warn('WebLLM 로드 실패:', webllmSources[currentSourceIndex]);
+                    currentSourceIndex++;
+                    loadWebLLM(); // 다음 CDN 시도
+                };
+                document.head.appendChild(script);
+            }
+            
+            loadWebLLM();
+        })();
+    </script>
     <script>
         // 강력한 캐시 버스팅 - 타임스탬프 사용
         (function() {
