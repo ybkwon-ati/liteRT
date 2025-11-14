@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>LiteRT 실시간 전사</title>
-    <link rel="stylesheet" href="styles.css?v=2">
+    <link rel="stylesheet" href="styles.css?v=3.0.0">
 </head>
 <body>
     <div class="container">
@@ -154,7 +154,14 @@
 
     <script src="https://cdn.jsdelivr.net/npm/litert@latest/dist/litert.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@latest/dist/index.js"></script>
-    <script src="app.js?v=2"></script>
+    <script>
+        // 캐시 버스팅을 위한 동적 버전 추가
+        const version = new Date().getTime();
+        const script = document.createElement('script');
+        script.src = `app.js?v=${version}`;
+        script.type = 'text/javascript';
+        document.head.appendChild(script);
+    </script>
 </body>
 </html>
 

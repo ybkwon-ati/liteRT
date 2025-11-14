@@ -1,4 +1,5 @@
 // LiteRT.js를 이용한 실시간 전사 애플리케이션
+// Version: 3.0.0 - Cache busting enabled
 
 class TranscriptionApp {
     constructor() {
