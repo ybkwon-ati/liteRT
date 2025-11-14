@@ -726,15 +726,20 @@ class TranscriptionApp {
     }
     
     // WebLLM 사용 가능 여부 확인
+    // 공식 문서: https://web.dev/articles/ai-chatbot-webllm?hl=ko
     isWebLLMAvailable() {
         // window.webllmObject가 설정되어 있으면 사용
         if (window.webllmObject) {
             return true;
         }
         
-        // 여러 방법으로 WebLLM 확인
-        return typeof webllm !== 'undefined' || 
-               typeof WebLLM !== 'undefined' || 
+        // 공식 방법: webllm 전역 변수 우선 확인
+        if (typeof webllm !== 'undefined') {
+            return true;
+        }
+        
+        // 폴백 방법들
+        return typeof WebLLM !== 'undefined' || 
                window.webllm !== undefined || 
                window.WebLLM !== undefined ||
                (window.webllmLoaded === true && (typeof webllm !== 'undefined' || typeof WebLLM !== 'undefined'));
@@ -763,7 +768,8 @@ class TranscriptionApp {
             
             this.isModelLoading = true;
             
-            // WebLLM 엔진 초기화 - 여러 방법으로 시도
+            // WebLLM 공식 문서에 따르면 'webllm' 전역 변수로 노출됨
+            // https://web.dev/articles/ai-chatbot-webllm?hl=ko
             let WebLLMEngine = null;
             
             // window.webllmObject가 설정되어 있으면 우선 사용
@@ -771,17 +777,17 @@ class TranscriptionApp {
                 WebLLMEngine = window.webllmObject;
                 console.log('WebLLM 엔진을 window.webllmObject에서 찾았습니다.');
             } else if (typeof webllm !== 'undefined') {
-                WebLLMEngine = webllm;
-                console.log('WebLLM 엔진을 webllm에서 찾았습니다.');
-            } else if (typeof WebLLM !== 'undefined') {
-                WebLLMEngine = WebLLM;
-                console.log('WebLLM 엔진을 WebLLM에서 찾았습니다.');
+                WebLLMEngine = webllm; // 공식 방법
+                console.log('WebLLM 엔진을 webllm에서 찾았습니다. (공식 방법)');
             } else if (window.webllm) {
                 WebLLMEngine = window.webllm;
                 console.log('WebLLM 엔진을 window.webllm에서 찾았습니다.');
+            } else if (typeof WebLLM !== 'undefined') {
+                WebLLMEngine = WebLLM;
+                console.log('WebLLM 엔진을 WebLLM에서 찾았습니다. (폴백)');
             } else if (window.WebLLM) {
                 WebLLMEngine = window.WebLLM;
-                console.log('WebLLM 엔진을 window.WebLLM에서 찾았습니다.');
+                console.log('WebLLM 엔진을 window.WebLLM에서 찾았습니다. (폴백)');
             }
             
             if (!WebLLMEngine) {
@@ -796,14 +802,20 @@ class TranscriptionApp {
                 throw new Error('WebLLM 엔진을 찾을 수 없습니다. 브라우저 콘솔을 확인해주세요.');
             }
             
-            // 모델 생성
+            // 모델 생성 - 공식 문서 방법 사용
+            // https://web.dev/articles/ai-chatbot-webllm?hl=ko
             this.llmEngine = await WebLLMEngine.create({
                 model: modelId,
                 initProgressCallback: (report) => {
                     console.log('모델 로딩 진행:', report);
-                    if (report.progress) {
+                    if (report.progress !== undefined) {
                         this.updateModel({
                             status: `AI 모델 로딩 중... ${Math.round(report.progress * 100)}%`,
+                            statusClass: 'waiting'
+                        });
+                    } else if (report.text) {
+                        this.updateModel({
+                            status: `AI 모델 로딩 중... ${report.text}`,
                             statusClass: 'waiting'
                         });
                     }
@@ -1015,16 +1027,26 @@ class TranscriptionApp {
         try {
             this.showAIResult('번역 중...', 'AI가 텍스트를 번역하고 있습니다...');
             
-            const prompt = `다음 한국어 텍스트를 영어로 번역해주세요. 번역만 출력하고 다른 설명은 하지 마세요:\n\n${text}`;
+            const messages = [
+                { role: 'user', content: `다음 한국어 텍스트를 영어로 번역해주세요. 번역만 출력하고 다른 설명은 하지 마세요:\n\n${text}` }
+            ];
             
-            // WebLLM API 사용
-            const response = await this.llmEngine.chat({
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.7,
-                max_gen_len: 500
+            // WebLLM 공식 API 사용 - 스트리밍 지원
+            // https://web.dev/articles/ai-chatbot-webllm?hl=ko
+            const chunks = await this.llmEngine.chat.completions.create({
+                messages: messages,
+                stream: true,
             });
 
-            const translatedText = response.message || response.text || response;
+            // 스트리밍 응답 처리
+            let translatedText = '';
+            for await (const chunk of chunks) {
+                const content = chunk.choices[0]?.delta?.content ?? '';
+                translatedText += content;
+                // 실시간으로 업데이트 (선택사항)
+                this.showAIResult('번역 중...', translatedText + '...');
+            }
+            
             this.showAIResult('번역 결과', translatedText);
             
         } catch (error) {
@@ -1055,16 +1077,26 @@ class TranscriptionApp {
         try {
             this.showAIResult('요약 중...', 'AI가 텍스트를 요약하고 있습니다...');
             
-            const prompt = `다음 텍스트를 간결하게 요약해주세요. 핵심 내용만 3-5문장으로 요약해주세요:\n\n${text}`;
+            const messages = [
+                { role: 'user', content: `다음 텍스트를 간결하게 요약해주세요. 핵심 내용만 3-5문장으로 요약해주세요:\n\n${text}` }
+            ];
             
-            // WebLLM API 사용
-            const response = await this.llmEngine.chat({
-                messages: [{ role: 'user', content: prompt }],
-                temperature: 0.5,
-                max_gen_len: 300
+            // WebLLM 공식 API 사용 - 스트리밍 지원
+            // https://web.dev/articles/ai-chatbot-webllm?hl=ko
+            const chunks = await this.llmEngine.chat.completions.create({
+                messages: messages,
+                stream: true,
             });
 
-            const summarizedText = response.message || response.text || response;
+            // 스트리밍 응답 처리
+            let summarizedText = '';
+            for await (const chunk of chunks) {
+                const content = chunk.choices[0]?.delta?.content ?? '';
+                summarizedText += content;
+                // 실시간으로 업데이트 (선택사항)
+                this.showAIResult('요약 중...', summarizedText + '...');
+            }
+            
             this.showAIResult('요약 결과', summarizedText);
             
         } catch (error) {

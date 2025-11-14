@@ -250,23 +250,24 @@
                     let webllmFound = false;
                     let webllmObject = null;
                     
-                    // 여러 방법으로 WebLLM 확인
+                    // WebLLM 공식 문서에 따르면 'webllm' 전역 변수로 노출됨
+                    // https://web.dev/articles/ai-chatbot-webllm?hl=ko
                     if (typeof webllm !== 'undefined') {
                         webllmFound = true;
                         webllmObject = webllm;
-                        console.log('WebLLM found as: webllm');
-                    } else if (typeof WebLLM !== 'undefined') {
-                        webllmFound = true;
-                        webllmObject = WebLLM;
-                        console.log('WebLLM found as: WebLLM');
+                        console.log('WebLLM found as: webllm (official)');
                     } else if (window.webllm) {
                         webllmFound = true;
                         webllmObject = window.webllm;
                         console.log('WebLLM found as: window.webllm');
+                    } else if (typeof WebLLM !== 'undefined') {
+                        webllmFound = true;
+                        webllmObject = WebLLM;
+                        console.log('WebLLM found as: WebLLM (fallback)');
                     } else if (window.WebLLM) {
                         webllmFound = true;
                         webllmObject = window.WebLLM;
-                        console.log('WebLLM found as: window.WebLLM');
+                        console.log('WebLLM found as: window.WebLLM (fallback)');
                     } else {
                         // 스크립트는 로드되었지만 전역 변수가 없는 경우, 잠시 대기
                         setTimeout(() => {
