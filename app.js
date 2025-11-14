@@ -18,11 +18,6 @@ class TranscriptionApp {
         this.micLevel = 0;
         this.isMicLevelMonitoring = false;
         
-        // AI 모델 (WebLLM)
-        this.llmEngine = null;
-        this.isModelLoading = false;
-        this.isModelReady = false;
-        
         // 전사 세션 추적
         this.currentSession = {
             startTime: null,
@@ -60,7 +55,7 @@ class TranscriptionApp {
         // 설정
         this.recognition.lang = 'ko-KR'; // 한국어
         this.recognition.continuous = true; // 연속 인식
-        this.recognition.interimResults = true; // 중간 결과 표시
+        this.recognition.interimResults = false; // 중간 결과는 숨겨 안정적인 출력 유지
         
         // LiteRT.js 반응형 시스템 초기화
         this.initReactiveSystem();
@@ -73,26 +68,14 @@ class TranscriptionApp {
         this.setupVisibilityHandlers();
         this.setupPermissionMonitoring();
         
-        // 모델 설정 UI 이벤트 핸들러 설정
-        this.setupModelConfigHandlers();
-        
         // 기록 관리 UI 이벤트 핸들러 설정
         this.setupHistoryHandlers();
-        
-        // 저장된 모델 설정 불러오기
-        this.loadSavedModelConfig();
         
         // 저장된 기록 불러오기
         this.loadSavedHistory();
         
         // 기록 관리 초기화 (메인 화면에 바로 표시)
         this.initHistoryManagement();
-        
-        // AI 모델 초기화는 WebLLM이 로드된 후에 수행
-        this.initAIModelWhenReady();
-        
-        // AI 이벤트 핸들러 설정
-        this.setupAIHandlers();
     }
 
     initReactiveSystem() {
@@ -941,8 +924,8 @@ class TranscriptionApp {
         this.updateModel({ micLevel: this.micLevel });
         
         // 다음 프레임 요청
-        if (this.model.isRecording && this.isMicLevelMonitoring) {
-            requestAnimationFrame(() => this.updateMicLevel());
+        if (this.isMicLevelMonitoring) {
+            this.micLevelInterval = requestAnimationFrame(() => this.updateMicLevel());
         }
     }
 
@@ -1779,7 +1762,6 @@ class TranscriptionApp {
             this.model.history[historyIndex].name = newName || `전사 기록 ${this.model.history[historyIndex].time}`;
             this.updateModel({ history: [...this.model.history] });
             this.saveHistoryToStorage();
-            this.updateHistoryDisplay();
         }
     }
 
