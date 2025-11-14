@@ -12,8 +12,10 @@ class TranscriptionApp {
         this.audioContext = null;
         this.analyser = null;
         this.microphone = null;
+        this.micStream = null;
         this.micLevelInterval = null;
         this.micLevel = 0;
+        this.isMicLevelMonitoring = false;
         
         // AI 모델 (WebLLM)
         this.llmEngine = null;
@@ -186,45 +188,73 @@ class TranscriptionApp {
     // 마이크 레벨 모니터링 시작
     async startMicLevelMonitoring() {
         try {
-            // AudioContext 생성
+            // 이미 모니터링 중이면 중복 실행 방지
+            if (this.isMicLevelMonitoring) {
+                return;
+            }
+
+            // AudioContext 생성 (suspended 상태일 수 있으므로 resume)
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+            
             // 마이크 스트림 가져오기
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.micStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false
+                } 
+            });
             
             // AnalyserNode 생성
             this.analyser = this.audioContext.createAnalyser();
-            this.analyser.fftSize = 256;
-            this.analyser.smoothingTimeConstant = 0.8;
+            this.analyser.fftSize = 2048;
+            this.analyser.smoothingTimeConstant = 0.3;
             
             // 마이크 입력을 Analyser에 연결
-            this.microphone = this.audioContext.createMediaStreamSource(stream);
+            this.microphone = this.audioContext.createMediaStreamSource(this.micStream);
             this.microphone.connect(this.analyser);
+            
+            this.isMicLevelMonitoring = true;
             
             // 마이크 레벨 업데이트 시작
             this.updateMicLevel();
             
         } catch (error) {
             console.error('마이크 레벨 모니터링 시작 오류:', error);
+            this.isMicLevelMonitoring = false;
         }
     }
 
     // 마이크 레벨 업데이트
     updateMicLevel() {
-        if (!this.analyser) return;
-        
-        const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-        this.analyser.getByteFrequencyData(dataArray);
-        
-        // 평균 레벨 계산
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
+        if (!this.analyser || !this.isMicLevelMonitoring) {
+            return;
         }
-        const average = sum / dataArray.length;
         
-        // 0-100 범위로 정규화
-        this.micLevel = Math.min(100, Math.round((average / 255) * 100));
+        // 시간 도메인 데이터 사용 (더 정확한 레벨 측정)
+        const dataArray = new Uint8Array(this.analyser.fftSize);
+        this.analyser.getByteTimeDomainData(dataArray);
+        
+        // 최대값 찾기
+        let max = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+            const value = Math.abs(dataArray[i] - 128); // 128을 중심으로
+            if (value > max) {
+                max = value;
+            }
+        }
+        
+        // 0-100 범위로 정규화 (더 민감하게 조정)
+        this.micLevel = Math.min(100, Math.round((max / 128) * 100));
+        
+        // 최소값 설정 (노이즈 필터링)
+        if (this.micLevel < 2) {
+            this.micLevel = 0;
+        }
         
         // UI 업데이트
         const micLevelFill = document.getElementById('micLevel');
@@ -232,6 +262,14 @@ class TranscriptionApp {
         
         if (micLevelFill) {
             micLevelFill.style.width = this.micLevel + '%';
+            // 레벨에 따라 색상 변경
+            if (this.micLevel > 70) {
+                micLevelFill.style.background = 'linear-gradient(90deg, #ff6b6b 0%, #ee5a6f 100%)';
+            } else if (this.micLevel > 40) {
+                micLevelFill.style.background = 'linear-gradient(90deg, #feca57 0%, #ff9ff3 100%)';
+            } else {
+                micLevelFill.style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
+            }
         }
         if (micLevelText) {
             micLevelText.textContent = this.micLevel + '%';
@@ -241,16 +279,26 @@ class TranscriptionApp {
         this.updateModel({ micLevel: this.micLevel });
         
         // 다음 프레임 요청
-        if (this.model.isRecording) {
+        if (this.model.isRecording && this.isMicLevelMonitoring) {
             requestAnimationFrame(() => this.updateMicLevel());
         }
     }
 
     // 마이크 레벨 모니터링 중지
     stopMicLevelMonitoring() {
+        this.isMicLevelMonitoring = false;
+        
         if (this.micLevelInterval) {
             cancelAnimationFrame(this.micLevelInterval);
             this.micLevelInterval = null;
+        }
+        
+        // 스트림 트랙 중지
+        if (this.micStream) {
+            this.micStream.getTracks().forEach(track => {
+                track.stop();
+            });
+            this.micStream = null;
         }
         
         if (this.microphone) {
@@ -258,8 +306,15 @@ class TranscriptionApp {
             this.microphone = null;
         }
         
+        if (this.analyser) {
+            this.analyser.disconnect();
+            this.analyser = null;
+        }
+        
         if (this.audioContext && this.audioContext.state !== 'closed') {
-            this.audioContext.close();
+            this.audioContext.close().catch(err => {
+                console.error('AudioContext 종료 오류:', err);
+            });
             this.audioContext = null;
         }
         
@@ -269,6 +324,7 @@ class TranscriptionApp {
         
         if (micLevelFill) {
             micLevelFill.style.width = '0%';
+            micLevelFill.style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
         }
         if (micLevelText) {
             micLevelText.textContent = '0%';
