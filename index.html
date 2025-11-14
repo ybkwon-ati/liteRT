@@ -34,6 +34,74 @@
                 <span id="language" class="language">언어: 한국어</span>
             </div>
 
+            <div class="model-config-section">
+                <div class="model-config-header">
+                    <h3>🤖 AI 모델 설정</h3>
+                    <button id="modelConfigBtn" class="btn-config">⚙️ 모델 설정</button>
+                </div>
+                <div id="currentModel" class="current-model">
+                    현재 모델: <span id="currentModelName">로딩 중...</span>
+                </div>
+            </div>
+
+            <div id="modelConfigModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>AI 모델 설정</h2>
+                        <button id="closeModal" class="btn-close-modal">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="model-source-tabs">
+                            <button class="tab-btn active" data-tab="gallery">Edge Gallery</button>
+                            <button class="tab-btn" data-tab="custom">직접 입력</button>
+                        </div>
+
+                        <div id="galleryTab" class="tab-content active">
+                            <div class="model-search">
+                                <input type="text" id="modelSearch" placeholder="모델 검색..." class="search-input">
+                                <button id="searchBtn" class="btn-search">검색</button>
+                            </div>
+                            <div class="model-list-container">
+                                <div id="modelList" class="model-list">
+                                    <div class="loading-models">모델 목록 로딩 중...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="customTab" class="tab-content">
+                            <div class="custom-model-input">
+                                <label for="customModelId">모델 ID 입력:</label>
+                                <input type="text" id="customModelId" placeholder="예: TinyLlama-1.1B-Chat-v0.4" class="model-input">
+                                <p class="model-hint">WebLLM에서 지원하는 모델 ID를 입력하세요</p>
+                            </div>
+                            <div class="preset-models">
+                                <h4>추천 모델:</h4>
+                                <div class="preset-list">
+                                    <button class="preset-btn" data-model="TinyLlama-1.1B-Chat-v0.4">TinyLlama-1.1B-Chat-v0.4 (경량)</button>
+                                    <button class="preset-btn" data-model="Llama-3.2-3B-Instruct-q4f32_1">Llama-3.2-3B-Instruct (중형)</button>
+                                    <button class="preset-btn" data-model="Phi-3-mini-4k-instruct-q4f32_1">Phi-3-mini-4k-instruct (경량)</button>
+                                    <button class="preset-btn" data-model="Qwen2.5-0.5B-Instruct-q4f32_1">Qwen2.5-0.5B-Instruct (초경량)</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="model-loading-status" id="modelLoadingStatus" style="display: none;">
+                            <div class="loading-progress">
+                                <div class="progress-bar">
+                                    <div id="modelProgress" class="progress-fill"></div>
+                                </div>
+                                <span id="modelProgressText">0%</span>
+                            </div>
+                            <p id="modelStatusText">모델 다운로드 중...</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="loadModelBtn" class="btn-load-model" disabled>모델 로드</button>
+                        <button id="cancelModelBtn" class="btn-cancel">취소</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="mic-level-container">
                 <div class="mic-level-label">마이크 레벨</div>
                 <div class="mic-level-bar">

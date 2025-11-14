@@ -65,7 +65,13 @@ class TranscriptionApp {
         this.setupVisibilityHandlers();
         this.setupPermissionMonitoring();
         
-        // AI 모델 초기화
+        // 모델 설정 UI 이벤트 핸들러 설정
+        this.setupModelConfigHandlers();
+        
+        // 저장된 모델 설정 불러오기
+        this.loadSavedModelConfig();
+        
+        // AI 모델 초기화 (저장된 모델이 있으면 사용)
         this.initAIModel();
         
         // AI 이벤트 핸들러 설정
@@ -121,6 +127,70 @@ class TranscriptionApp {
         clearBtn.addEventListener('click', () => this.clearTranscription());
     }
 
+    // 모델 설정 UI 이벤트 핸들러 설정
+    setupModelConfigHandlers() {
+        const modelConfigBtn = document.getElementById('modelConfigBtn');
+        const closeModal = document.getElementById('closeModal');
+        const cancelModelBtn = document.getElementById('cancelModelBtn');
+        const loadModelBtn = document.getElementById('loadModelBtn');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const presetBtns = document.querySelectorAll('.preset-btn');
+        const customModelId = document.getElementById('customModelId');
+        const searchBtn = document.getElementById('searchBtn');
+
+        if (modelConfigBtn) {
+            modelConfigBtn.addEventListener('click', () => this.openModelConfig());
+        }
+        if (closeModal) {
+            closeModal.addEventListener('click', () => this.closeModelConfig());
+        }
+        if (cancelModelBtn) {
+            cancelModelBtn.addEventListener('click', () => this.closeModelConfig());
+        }
+        if (loadModelBtn) {
+            loadModelBtn.addEventListener('click', () => this.loadSelectedModel());
+        }
+
+        // 탭 전환
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tab = e.target.dataset.tab;
+                this.switchTab(tab);
+            });
+        });
+
+        // 프리셋 모델 선택
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modelId = e.target.dataset.model;
+                customModelId.value = modelId;
+                loadModelBtn.disabled = false;
+            });
+        });
+
+        // 커스텀 모델 입력
+        if (customModelId) {
+            customModelId.addEventListener('input', () => {
+                loadModelBtn.disabled = !customModelId.value.trim();
+            });
+        }
+
+        // 모달 외부 클릭 시 닫기
+        const modal = document.getElementById('modelConfigModal');
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeModelConfig();
+                }
+            });
+        }
+
+        // 검색 버튼
+        if (searchBtn) {
+            searchBtn.addEventListener('click', () => this.searchModels());
+        }
+    }
+
     // AI 이벤트 핸들러 설정
     setupAIHandlers() {
         const translateBtn = document.getElementById('translateBtn');
@@ -132,14 +202,257 @@ class TranscriptionApp {
         closeAiResult.addEventListener('click', () => this.closeAIResult());
     }
 
+    // 탭 전환
+    switchTab(tabName) {
+        const tabs = document.querySelectorAll('.tab-content');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+
+        tabs.forEach(tab => tab.classList.remove('active'));
+        tabBtns.forEach(btn => btn.classList.remove('active'));
+
+        document.getElementById(tabName + 'Tab').classList.add('active');
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    }
+
+    // 모델 설정 모달 열기
+    openModelConfig() {
+        const modal = document.getElementById('modelConfigModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            this.loadAvailableModels();
+        }
+    }
+
+    // 모델 설정 모달 닫기
+    closeModelConfig() {
+        const modal = document.getElementById('modelConfigModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    // 사용 가능한 모델 목록 로드
+    async loadAvailableModels() {
+        const modelList = document.getElementById('modelList');
+        if (!modelList) return;
+
+        modelList.innerHTML = '<div class="loading-models">모델 목록 로딩 중...</div>';
+
+        try {
+            // WebLLM에서 지원하는 일반적인 모델 목록
+            const models = [
+                { id: 'TinyLlama-1.1B-Chat-v0.4', name: 'TinyLlama 1.1B', desc: '경량 모델 (약 700MB), 빠른 응답' },
+                { id: 'Llama-3.2-3B-Instruct-q4f32_1', name: 'Llama 3.2 3B', desc: '중형 모델 (약 2GB), 높은 품질' },
+                { id: 'Phi-3-mini-4k-instruct-q4f32_1', name: 'Phi-3 Mini', desc: '경량 모델 (약 2GB), 효율적' },
+                { id: 'Qwen2.5-0.5B-Instruct-q4f32_1', name: 'Qwen2.5 0.5B', desc: '초경량 모델 (약 300MB), 매우 빠름' },
+                { id: 'Mistral-7B-Instruct-v0.2-q4f32_1', name: 'Mistral 7B', desc: '대형 모델 (약 4GB), 최고 품질' },
+                { id: 'Gemma-2-2B-it-q4f32_1', name: 'Gemma 2 2B', desc: '중형 모델 (약 1.5GB), 균형잡힌 성능' }
+            ];
+
+            this.availableModels = models;
+            this.renderModelList(models);
+
+        } catch (error) {
+            console.error('모델 목록 로드 오류:', error);
+            modelList.innerHTML = '<div class="loading-models">모델 목록을 불러올 수 없습니다.</div>';
+        }
+    }
+
+    // 모델 목록 렌더링
+    renderModelList(models, searchTerm = '') {
+        const modelList = document.getElementById('modelList');
+        if (!modelList) return;
+
+        const filteredModels = searchTerm 
+            ? models.filter(m => 
+                m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                m.id.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+            : models;
+
+        if (filteredModels.length === 0) {
+            modelList.innerHTML = '<div class="loading-models">검색 결과가 없습니다.</div>';
+            return;
+        }
+
+        modelList.innerHTML = filteredModels.map(model => `
+            <div class="model-item" data-model-id="${model.id}">
+                <div class="model-item-name">${model.name}</div>
+                <div class="model-item-desc">${model.desc}</div>
+                <div class="model-item-id" style="font-size: 0.8em; color: #999; margin-top: 5px;">${model.id}</div>
+            </div>
+        `).join('');
+
+        // 모델 선택 이벤트
+        modelList.querySelectorAll('.model-item').forEach(item => {
+            item.addEventListener('click', () => {
+                modelList.querySelectorAll('.model-item').forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                const loadBtn = document.getElementById('loadModelBtn');
+                if (loadBtn) {
+                    loadBtn.disabled = false;
+                }
+            });
+        });
+    }
+
+    // 모델 검색
+    searchModels() {
+        const searchInput = document.getElementById('modelSearch');
+        const searchTerm = searchInput ? searchInput.value : '';
+        this.renderModelList(this.availableModels, searchTerm);
+    }
+
+    // 선택한 모델 로드
+    async loadSelectedModel() {
+        const modelList = document.getElementById('modelList');
+        const customModelId = document.getElementById('customModelId');
+        const loadBtn = document.getElementById('loadModelBtn');
+        const loadingStatus = document.getElementById('modelLoadingStatus');
+        const modelProgress = document.getElementById('modelProgress');
+        const modelProgressText = document.getElementById('modelProgressText');
+        const modelStatusText = document.getElementById('modelStatusText');
+
+        let selectedModelId = null;
+
+        // 커스텀 탭에서 입력한 모델 ID 확인
+        if (customModelId && customModelId.value.trim()) {
+            selectedModelId = customModelId.value.trim();
+        } else {
+            // 갤러리 탭에서 선택한 모델 확인
+            const selectedItem = modelList?.querySelector('.model-item.selected');
+            if (selectedItem) {
+                selectedModelId = selectedItem.dataset.modelId;
+            }
+        }
+
+        if (!selectedModelId) {
+            alert('모델을 선택해주세요.');
+            return;
+        }
+
+        // 로딩 UI 표시
+        if (loadBtn) loadBtn.disabled = true;
+        if (loadingStatus) loadingStatus.style.display = 'block';
+        if (modelStatusText) modelStatusText.textContent = '모델 다운로드 중...';
+
+        try {
+            // 기존 모델 정리
+            if (this.llmEngine) {
+                try {
+                    await this.llmEngine.unload();
+                } catch (e) {
+                    console.warn('기존 모델 언로드 오류:', e);
+                }
+                this.llmEngine = null;
+            }
+
+            this.isModelReady = false;
+            this.isModelLoading = true;
+
+            // WebLLM 엔진 초기화
+            const WebLLMEngine = webllm || WebLLM;
+            
+            this.llmEngine = await WebLLMEngine.create({
+                model: selectedModelId,
+                initProgressCallback: (report) => {
+                    console.log('모델 로딩 진행:', report);
+                    const progress = report.progress || 0;
+                    
+                    if (modelProgress) {
+                        modelProgress.style.width = (progress * 100) + '%';
+                    }
+                    if (modelProgressText) {
+                        modelProgressText.textContent = Math.round(progress * 100) + '%';
+                    }
+                    if (modelStatusText) {
+                        if (report.text) {
+                            modelStatusText.textContent = report.text;
+                        } else {
+                            modelStatusText.textContent = `모델 로딩 중... ${Math.round(progress * 100)}%`;
+                        }
+                    }
+                }
+            });
+
+            this.currentModelId = selectedModelId;
+            this.isModelReady = true;
+            this.isModelLoading = false;
+
+            // 모델 설정 저장
+            this.saveModelConfig(selectedModelId);
+
+            // UI 업데이트
+            const currentModelName = document.getElementById('currentModelName');
+            if (currentModelName) {
+                currentModelName.textContent = selectedModelId;
+            }
+
+            this.updateModel({
+                status: 'AI 모델 준비 완료',
+                statusClass: 'waiting'
+            });
+
+            // 모달 닫기
+            this.closeModelConfig();
+
+            alert('모델이 성공적으로 로드되었습니다!');
+
+        } catch (error) {
+            console.error('모델 로드 오류:', error);
+            this.isModelLoading = false;
+            this.isModelReady = false;
+            
+            if (modelStatusText) {
+                modelStatusText.textContent = '모델 로드 실패: ' + error.message;
+            }
+            
+            alert('모델 로드 중 오류가 발생했습니다: ' + error.message);
+        } finally {
+            if (loadBtn) loadBtn.disabled = false;
+        }
+    }
+
+    // 모델 설정 저장
+    saveModelConfig(modelId) {
+        try {
+            localStorage.setItem('webllm_model_id', modelId);
+        } catch (error) {
+            console.error('모델 설정 저장 오류:', error);
+        }
+    }
+
+    // 저장된 모델 설정 불러오기
+    loadSavedModelConfig() {
+        try {
+            const savedModelId = localStorage.getItem('webllm_model_id');
+            if (savedModelId) {
+                this.currentModelId = savedModelId;
+                const currentModelName = document.getElementById('currentModelName');
+                if (currentModelName) {
+                    currentModelName.textContent = savedModelId;
+                }
+            }
+        } catch (error) {
+            console.error('모델 설정 불러오기 오류:', error);
+        }
+    }
+
     // AI 모델 초기화 (WebLLM)
     async initAIModel() {
         try {
             // WebLLM이 로드되었는지 확인
             if (typeof webllm === 'undefined' && typeof WebLLM === 'undefined') {
                 console.warn('WebLLM이 로드되지 않았습니다. AI 기능을 사용할 수 없습니다.');
+                const currentModelName = document.getElementById('currentModelName');
+                if (currentModelName) {
+                    currentModelName.textContent = 'WebLLM 미로드';
+                }
                 return;
             }
+            
+            // 저장된 모델이 있으면 사용, 없으면 기본 모델 사용
+            const modelId = this.currentModelId || "TinyLlama-1.1B-Chat-v0.4";
             
             this.updateModel({
                 status: 'AI 모델 로딩 중...',
@@ -151,9 +464,9 @@ class TranscriptionApp {
             // WebLLM 엔진 초기화
             const WebLLMEngine = webllm || WebLLM;
             
-            // 모델 생성 (경량 모델 사용)
+            // 모델 생성
             this.llmEngine = await WebLLMEngine.create({
-                model: "TinyLlama-1.1B-Chat-v0.4", // 경량 모델
+                model: modelId,
                 initProgressCallback: (report) => {
                     console.log('모델 로딩 진행:', report);
                     if (report.progress) {
@@ -165,19 +478,35 @@ class TranscriptionApp {
                 }
             });
             
+            this.currentModelId = modelId;
             this.isModelReady = true;
             this.isModelLoading = false;
+            
+            // 모델 설정 저장
+            this.saveModelConfig(modelId);
+            
+            // UI 업데이트
+            const currentModelName = document.getElementById('currentModelName');
+            if (currentModelName) {
+                currentModelName.textContent = modelId;
+            }
             
             this.updateModel({
                 status: 'AI 모델 준비 완료',
                 statusClass: 'waiting'
             });
             
-            console.log('AI 모델 로딩 완료');
+            console.log('AI 모델 로딩 완료:', modelId);
         } catch (error) {
             console.error('AI 모델 초기화 오류:', error);
             this.isModelLoading = false;
             this.isModelReady = false;
+            
+            const currentModelName = document.getElementById('currentModelName');
+            if (currentModelName) {
+                currentModelName.textContent = '로드 실패';
+            }
+            
             this.updateModel({
                 status: 'AI 모델 로딩 실패 (기본 모드로 실행)',
                 statusClass: 'waiting'

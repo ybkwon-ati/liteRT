@@ -345,6 +345,372 @@ main {
     font-style: italic;
 }
 
+/* 모델 설정 섹션 */
+.model-config-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.model-config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.model-config-header h3 {
+    color: #667eea;
+    font-size: 1.2em;
+    margin: 0;
+}
+
+.btn-config {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    background: #667eea;
+    color: white;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-config:hover {
+    background: #764ba2;
+    transform: translateY(-1px);
+}
+
+.current-model {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.current-model span {
+    font-weight: 600;
+    color: #667eea;
+}
+
+/* 모달 스타일 */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #667eea;
+}
+
+.btn-close-modal {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.btn-close-modal:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 20px;
+    border-top: 2px solid #e9ecef;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* 탭 스타일 */
+.model-source-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1em;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.tab-btn.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+    font-weight: 600;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 모델 검색 */
+.model-search {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.search-input {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1em;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn-search {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #667eea;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.btn-search:hover {
+    background: #764ba2;
+}
+
+/* 모델 목록 */
+.model-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.model-list {
+    display: grid;
+    gap: 10px;
+}
+
+.model-item {
+    padding: 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.model-item:hover {
+    border-color: #667eea;
+    background: #f8f9fa;
+}
+
+.model-item.selected {
+    border-color: #667eea;
+    background: #e8f0fe;
+}
+
+.model-item-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.model-item-desc {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.loading-models {
+    text-align: center;
+    padding: 20px;
+    color: #999;
+}
+
+/* 커스텀 모델 입력 */
+.custom-model-input {
+    margin-bottom: 20px;
+}
+
+.custom-model-input label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.model-input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1em;
+    margin-bottom: 8px;
+}
+
+.model-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.model-hint {
+    font-size: 0.85em;
+    color: #666;
+    margin: 0;
+}
+
+.preset-models h4 {
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.preset-list {
+    display: grid;
+    gap: 8px;
+}
+
+.preset-btn {
+    padding: 10px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.3s ease;
+}
+
+.preset-btn:hover {
+    border-color: #667eea;
+    background: #f8f9fa;
+}
+
+/* 모델 로딩 상태 */
+.model-loading-status {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.loading-progress {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 20px;
+    background: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+#modelStatusText {
+    margin: 0;
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* 버튼 스타일 */
+.btn-load-model {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: #667eea;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-load-model:hover:not(:disabled) {
+    background: #764ba2;
+}
+
+.btn-load-model:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-cancel {
+    padding: 10px 20px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    color: #666;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-cancel:hover {
+    background: #f8f9fa;
+    border-color: #667eea;
+}
+
 footer {
     background: #f8f9fa;
     padding: 20px;
