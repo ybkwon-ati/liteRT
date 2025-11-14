@@ -85,8 +85,8 @@ class TranscriptionApp {
         // 저장된 기록 불러오기
         this.loadSavedHistory();
         
-        // AI 모델 초기화 (저장된 모델이 있으면 사용)
-        this.initAIModel();
+        // AI 모델 초기화는 WebLLM이 로드된 후에 수행
+        this.initAIModelWhenReady();
         
         // AI 이벤트 핸들러 설정
         this.setupAIHandlers();
