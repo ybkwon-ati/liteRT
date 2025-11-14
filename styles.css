@@ -254,10 +254,34 @@ main {
     margin-top: 30px;
 }
 
-.history-section h2 {
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 15px;
+}
+
+.history-section h2 {
+    margin: 0;
     color: #667eea;
     font-size: 1.5em;
+}
+
+.btn-history-manage {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #667eea;
+    color: white;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-history-manage:hover {
+    background: #764ba2;
+    transform: translateY(-1px);
 }
 
 .history-list {
@@ -272,6 +296,33 @@ main {
     border-left: 4px solid #667eea;
     border-radius: 5px;
     animation: slideIn 0.3s ease;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.history-item:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.history-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.history-item-duration {
+    font-size: 0.85em;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.history-item-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 1.05em;
 }
 
 @keyframes slideIn {
@@ -780,6 +831,286 @@ main {
 .btn-cancel:hover {
     background: #f8f9fa;
     border-color: #667eea;
+}
+
+/* 기록 관리 모달 스타일 */
+.history-modal-content {
+    max-width: 900px;
+    width: 95%;
+}
+
+.history-filters {
+    margin-bottom: 25px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.search-box {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.date-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.date-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.date-filter-item label {
+    font-weight: 600;
+    color: #333;
+    min-width: 80px;
+}
+
+.date-input {
+    padding: 8px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn-clear-filter,
+.btn-apply-filter {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #667eea;
+    color: white;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-clear-filter:hover,
+.btn-apply-filter:hover {
+    background: #764ba2;
+}
+
+/* 달력 스타일 */
+.calendar-view {
+    margin-bottom: 25px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.calendar-header h3 {
+    margin: 0;
+    color: #667eea;
+    font-size: 1.2em;
+}
+
+.btn-calendar-nav {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    background: #667eea;
+    color: white;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-calendar-nav:hover {
+    background: #764ba2;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.calendar-weekday {
+    text-align: center;
+    font-weight: 600;
+    color: #667eea;
+    padding: 8px;
+    font-size: 0.9em;
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    padding: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.calendar-day:hover {
+    border-color: #667eea;
+    background: #f8f9fa;
+}
+
+.calendar-day.empty {
+    background: transparent;
+    border: none;
+    cursor: default;
+}
+
+.calendar-day.today {
+    border-color: #667eea;
+    background: #e8f0fe;
+    font-weight: 600;
+}
+
+.calendar-day.has-records {
+    border-color: #28a745;
+}
+
+.calendar-day-number {
+    font-size: 0.9em;
+    color: #333;
+}
+
+.calendar-day-count {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: #667eea;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7em;
+    font-weight: 600;
+}
+
+/* 기록 관리 목록 */
+.history-list-section {
+    margin-top: 25px;
+}
+
+.history-list-section h4 {
+    margin-bottom: 15px;
+    color: #667eea;
+}
+
+.history-manage-list {
+    max-height: 400px;
+    overflow-y: auto;
+    display: grid;
+    gap: 15px;
+}
+
+.history-manage-item {
+    padding: 15px;
+    background: white;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.history-manage-item:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.history-manage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.history-name-input {
+    flex: 1;
+    padding: 6px 10px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 1em;
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+.history-name-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn-delete-history {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    background: #dc3545;
+    color: white;
+    cursor: pointer;
+    font-size: 1em;
+    transition: all 0.3s ease;
+}
+
+.btn-delete-history:hover {
+    background: #c82333;
+}
+
+.history-manage-meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+    font-size: 0.85em;
+    color: #666;
+    flex-wrap: wrap;
+}
+
+.history-date,
+.history-time,
+.history-duration {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.history-manage-text {
+    color: #333;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 150px;
+    overflow-y: auto;
 }
 
 footer {

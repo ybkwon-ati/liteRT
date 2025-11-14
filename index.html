@@ -158,8 +158,65 @@
             </div>
 
             <div class="history-section">
-                <h2>전사 기록</h2>
+                <div class="history-header">
+                    <h2>📝 전사 기록 관리</h2>
+                    <button id="historyManageBtn" class="btn-history-manage">📅 기록 관리</button>
+                </div>
                 <div id="history" class="history-list"></div>
+            </div>
+
+            <!-- 기록 관리 모달 -->
+            <div id="historyManageModal" class="modal" style="display: none;">
+                <div class="modal-content history-modal-content">
+                    <div class="modal-header">
+                        <h2>전사 기록 관리</h2>
+                        <button id="closeHistoryModal" class="btn-close-modal">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- 검색 및 필터 -->
+                        <div class="history-filters">
+                            <div class="search-box">
+                                <input type="text" id="historySearch" placeholder="기록 내용 검색..." class="search-input">
+                                <button id="historySearchBtn" class="btn-search">🔍 검색</button>
+                            </div>
+                            <div class="date-filters">
+                                <div class="date-filter-item">
+                                    <label>날짜 선택:</label>
+                                    <input type="date" id="historyDateFilter" class="date-input">
+                                    <button id="clearDateFilter" class="btn-clear-filter">초기화</button>
+                                </div>
+                                <div class="date-filter-item">
+                                    <label>기간 선택:</label>
+                                    <input type="date" id="historyStartDate" class="date-input">
+                                    <span>~</span>
+                                    <input type="date" id="historyEndDate" class="date-input">
+                                    <button id="applyDateRange" class="btn-apply-filter">적용</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 달력 뷰 -->
+                        <div class="calendar-view">
+                            <div class="calendar-header">
+                                <button id="prevMonth" class="btn-calendar-nav">◀</button>
+                                <h3 id="currentMonthYear"></h3>
+                                <button id="nextMonth" class="btn-calendar-nav">▶</button>
+                            </div>
+                            <div id="calendar" class="calendar-grid"></div>
+                        </div>
+
+                        <!-- 기록 목록 -->
+                        <div class="history-list-section">
+                            <h4>기록 목록</h4>
+                            <div id="historyManageList" class="history-manage-list">
+                                <div class="loading-models">기록을 불러오는 중...</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="closeHistoryManageBtn" class="btn-cancel">닫기</button>
+                    </div>
+                </div>
             </div>
         </main>
 

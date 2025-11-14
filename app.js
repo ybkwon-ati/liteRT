@@ -23,6 +23,13 @@ class TranscriptionApp {
         this.isModelLoading = false;
         this.isModelReady = false;
         
+        // 전사 세션 추적
+        this.currentSession = {
+            startTime: null,
+            endTime: null,
+            name: null
+        };
+        
         // LiteRT.js 반응형 데이터 모델
         this.model = {
             isRecording: false,
@@ -69,8 +76,14 @@ class TranscriptionApp {
         // 모델 설정 UI 이벤트 핸들러 설정
         this.setupModelConfigHandlers();
         
+        // 기록 관리 UI 이벤트 핸들러 설정
+        this.setupHistoryHandlers();
+        
         // 저장된 모델 설정 불러오기
         this.loadSavedModelConfig();
+        
+        // 저장된 기록 불러오기
+        this.loadSavedHistory();
         
         // AI 모델 초기화 (저장된 모델이 있으면 사용)
         this.initAIModel();
@@ -209,6 +222,63 @@ class TranscriptionApp {
         translateBtn.addEventListener('click', () => this.translateText());
         summarizeBtn.addEventListener('click', () => this.summarizeText());
         closeAiResult.addEventListener('click', () => this.closeAIResult());
+    }
+
+    // 기록 관리 이벤트 핸들러 설정
+    setupHistoryHandlers() {
+        const historyManageBtn = document.getElementById('historyManageBtn');
+        const closeHistoryModal = document.getElementById('closeHistoryModal');
+        const closeHistoryManageBtn = document.getElementById('closeHistoryManageBtn');
+        const historySearchBtn = document.getElementById('historySearchBtn');
+        const clearDateFilter = document.getElementById('clearDateFilter');
+        const applyDateRange = document.getElementById('applyDateRange');
+        const prevMonth = document.getElementById('prevMonth');
+        const nextMonth = document.getElementById('nextMonth');
+
+        if (historyManageBtn) {
+            historyManageBtn.addEventListener('click', () => this.openHistoryManage());
+        }
+        if (closeHistoryModal) {
+            closeHistoryModal.addEventListener('click', () => this.closeHistoryManage());
+        }
+        if (closeHistoryManageBtn) {
+            closeHistoryManageBtn.addEventListener('click', () => this.closeHistoryManage());
+        }
+        if (historySearchBtn) {
+            historySearchBtn.addEventListener('click', () => this.searchHistory());
+        }
+        if (clearDateFilter) {
+            clearDateFilter.addEventListener('click', () => this.clearDateFilter());
+        }
+        if (applyDateRange) {
+            applyDateRange.addEventListener('click', () => this.applyDateRangeFilter());
+        }
+        if (prevMonth) {
+            prevMonth.addEventListener('click', () => this.navigateMonth(-1));
+        }
+        if (nextMonth) {
+            nextMonth.addEventListener('click', () => this.navigateMonth(1));
+        }
+
+        // 검색 입력 엔터 키 지원
+        const historySearch = document.getElementById('historySearch');
+        if (historySearch) {
+            historySearch.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.searchHistory();
+                }
+            });
+        }
+
+        // 모달 외부 클릭 시 닫기
+        const modal = document.getElementById('historyManageModal');
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeHistoryManage();
+                }
+            });
+        }
     }
 
     // 탭 전환
@@ -1205,6 +1275,11 @@ class TranscriptionApp {
 
         this.retryCount = 0; // 재시도 카운터 리셋
         
+        // 전사 세션 시작 시간 기록
+        this.currentSession.startTime = new Date();
+        this.currentSession.endTime = null;
+        this.currentSession.name = null;
+        
         // 마이크 레벨 모니터링 시작
         await this.startMicLevelMonitoring();
         
@@ -1232,6 +1307,9 @@ class TranscriptionApp {
     stopTranscription() {
         this.updateModel({ isRecording: false });
         this.retryCount = 0; // 재시도 카운터 리셋
+        
+        // 전사 세션 종료 시간 기록
+        this.currentSession.endTime = new Date();
         
         // 마이크 레벨 모니터링 중지
         this.stopMicLevelMonitoring();
@@ -1270,11 +1348,22 @@ class TranscriptionApp {
 
     saveToHistory() {
         const now = new Date();
+        const dateString = now.toISOString().split('T')[0]; // YYYY-MM-DD
         const timeString = now.toLocaleTimeString('ko-KR');
         
+        // 기록 항목 생성 (향상된 구조)
         const historyItem = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            name: `전사 기록 ${timeString}`,
+            text: this.model.transcriptionText.trim(),
+            date: dateString,
             time: timeString,
-            text: this.model.transcriptionText.trim()
+            startTime: this.currentSession.startTime ? this.currentSession.startTime.toISOString() : null,
+            endTime: this.currentSession.endTime ? this.currentSession.endTime.toISOString() : now.toISOString(),
+            duration: this.currentSession.startTime && this.currentSession.endTime 
+                ? Math.round((this.currentSession.endTime - this.currentSession.startTime) / 1000 / 60) // 분 단위
+                : null,
+            createdAt: now.toISOString()
         };
         
         const newHistory = [historyItem, ...this.model.history];
@@ -1282,6 +1371,48 @@ class TranscriptionApp {
             history: newHistory,
             transcriptionText: ''
         });
+        
+        // localStorage에 저장
+        this.saveHistoryToStorage();
+        
+        // 세션 초기화
+        this.currentSession = {
+            startTime: null,
+            endTime: null,
+            name: null
+        };
+    }
+
+    // 기록을 localStorage에 저장
+    saveHistoryToStorage() {
+        try {
+            localStorage.setItem('transcription_history', JSON.stringify(this.model.history));
+        } catch (error) {
+            console.error('기록 저장 오류:', error);
+            // 저장소가 가득 찬 경우 오래된 기록 삭제
+            if (error.name === 'QuotaExceededError') {
+                const reducedHistory = this.model.history.slice(0, 50); // 최근 50개만 유지
+                this.updateModel({ history: reducedHistory });
+                try {
+                    localStorage.setItem('transcription_history', JSON.stringify(reducedHistory));
+                } catch (e) {
+                    console.error('기록 저장 재시도 실패:', e);
+                }
+            }
+        }
+    }
+
+    // 저장된 기록 불러오기
+    loadSavedHistory() {
+        try {
+            const savedHistory = localStorage.getItem('transcription_history');
+            if (savedHistory) {
+                const history = JSON.parse(savedHistory);
+                this.updateModel({ history: history });
+            }
+        } catch (error) {
+            console.error('기록 불러오기 오류:', error);
+        }
     }
 
     updateTranscriptionDisplay() {
@@ -1305,12 +1436,234 @@ class TranscriptionApp {
             return;
         }
         
-        historyElement.innerHTML = this.model.history.map(item => `
-            <div class="history-item">
-                <div class="history-item-time">${item.time}</div>
-                <div class="history-item-text">${item.text}</div>
+        // 최근 5개만 표시
+        const recentHistory = this.model.history.slice(0, 5);
+        
+        historyElement.innerHTML = recentHistory.map(item => `
+            <div class="history-item" data-history-id="${item.id}">
+                <div class="history-item-header">
+                    <div class="history-item-time">${item.date} ${item.time}</div>
+                    ${item.duration ? `<div class="history-item-duration">⏱ ${item.duration}분</div>` : ''}
+                </div>
+                <div class="history-item-name">${item.name || '전사 기록'}</div>
+                <div class="history-item-text">${item.text.substring(0, 100)}${item.text.length > 100 ? '...' : ''}</div>
             </div>
         `).join('');
+    }
+
+    // 기록 관리 모달 열기
+    openHistoryManage() {
+        const modal = document.getElementById('historyManageModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            this.renderCalendar();
+            this.renderHistoryManageList();
+        }
+    }
+
+    // 기록 관리 모달 닫기
+    closeHistoryManage() {
+        const modal = document.getElementById('historyManageModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    // 달력 렌더링
+    currentCalendarDate = new Date();
+
+    renderCalendar() {
+        const calendar = document.getElementById('calendar');
+        const currentMonthYear = document.getElementById('currentMonthYear');
+        if (!calendar || !currentMonthYear) return;
+
+        const year = this.currentCalendarDate.getFullYear();
+        const month = this.currentCalendarDate.getMonth();
+
+        // 월/년도 표시
+        currentMonthYear.textContent = `${year}년 ${month + 1}월`;
+
+        // 달력 그리드 생성
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        // 날짜별 기록 개수 계산
+        const recordsByDate = {};
+        this.model.history.forEach(record => {
+            const recordDate = record.date;
+            if (!recordsByDate[recordDate]) {
+                recordsByDate[recordDate] = 0;
+            }
+            recordsByDate[recordDate]++;
+        });
+
+        let calendarHTML = '<div class="calendar-weekdays">';
+        const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+        weekdays.forEach(day => {
+            calendarHTML += `<div class="calendar-weekday">${day}</div>`;
+        });
+        calendarHTML += '</div><div class="calendar-days">';
+
+        // 빈 칸 추가
+        for (let i = 0; i < firstDay; i++) {
+            calendarHTML += '<div class="calendar-day empty"></div>';
+        }
+
+        // 날짜 추가
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const recordCount = recordsByDate[dateStr] || 0;
+            const isToday = dateStr === new Date().toISOString().split('T')[0];
+            
+            calendarHTML += `
+                <div class="calendar-day ${isToday ? 'today' : ''} ${recordCount > 0 ? 'has-records' : ''}" 
+                     data-date="${dateStr}" 
+                     onclick="appInstance.selectCalendarDate('${dateStr}')">
+                    <div class="calendar-day-number">${day}</div>
+                    ${recordCount > 0 ? `<div class="calendar-day-count">${recordCount}</div>` : ''}
+                </div>
+            `;
+        }
+
+        calendarHTML += '</div>';
+        calendar.innerHTML = calendarHTML;
+    }
+
+    // 달력 월 이동
+    navigateMonth(direction) {
+        this.currentCalendarDate.setMonth(this.currentCalendarDate.getMonth() + direction);
+        this.renderCalendar();
+    }
+
+    // 달력 날짜 선택
+    selectCalendarDate(dateStr) {
+        const dateFilter = document.getElementById('historyDateFilter');
+        if (dateFilter) {
+            dateFilter.value = dateStr;
+            this.applyDateFilter();
+        }
+    }
+
+    // 날짜 필터 적용
+    applyDateFilter() {
+        const dateFilter = document.getElementById('historyDateFilter');
+        const selectedDate = dateFilter ? dateFilter.value : null;
+        
+        if (selectedDate) {
+            this.filteredHistory = this.model.history.filter(record => record.date === selectedDate);
+        } else {
+            this.filteredHistory = [...this.model.history];
+        }
+        
+        this.renderHistoryManageList();
+    }
+
+    // 날짜 범위 필터 적용
+    applyDateRangeFilter() {
+        const startDate = document.getElementById('historyStartDate')?.value;
+        const endDate = document.getElementById('historyEndDate')?.value;
+        
+        if (startDate && endDate) {
+            this.filteredHistory = this.model.history.filter(record => {
+                return record.date >= startDate && record.date <= endDate;
+            });
+        } else {
+            this.filteredHistory = [...this.model.history];
+        }
+        
+        this.renderHistoryManageList();
+    }
+
+    // 날짜 필터 초기화
+    clearDateFilter() {
+        const dateFilter = document.getElementById('historyDateFilter');
+        const startDate = document.getElementById('historyStartDate');
+        const endDate = document.getElementById('historyEndDate');
+        
+        if (dateFilter) dateFilter.value = '';
+        if (startDate) startDate.value = '';
+        if (endDate) endDate.value = '';
+        
+        this.filteredHistory = [...this.model.history];
+        this.renderHistoryManageList();
+    }
+
+    // 기록 검색
+    searchHistory() {
+        const searchInput = document.getElementById('historySearch');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        
+        if (!searchTerm) {
+            this.filteredHistory = [...this.model.history];
+        } else {
+            this.filteredHistory = this.model.history.filter(record => {
+                return record.text.toLowerCase().includes(searchTerm) ||
+                       record.name.toLowerCase().includes(searchTerm);
+            });
+        }
+        
+        this.renderHistoryManageList();
+    }
+
+    // 기록 관리 목록 렌더링
+    filteredHistory = [];
+
+    renderHistoryManageList() {
+        const historyList = document.getElementById('historyManageList');
+        if (!historyList) return;
+
+        const recordsToShow = this.filteredHistory && this.filteredHistory.length > 0 
+            ? this.filteredHistory 
+            : this.model.history;
+
+        if (recordsToShow.length === 0) {
+            historyList.innerHTML = '<div class="loading-models">기록이 없습니다.</div>';
+            return;
+        }
+
+        historyList.innerHTML = recordsToShow.map(item => {
+            const startTime = item.startTime ? new Date(item.startTime).toLocaleTimeString('ko-KR') : '-';
+            const endTime = item.endTime ? new Date(item.endTime).toLocaleTimeString('ko-KR') : '-';
+            
+            return `
+                <div class="history-manage-item" data-history-id="${item.id}">
+                    <div class="history-manage-header">
+                        <input type="text" class="history-name-input" value="${item.name || '전사 기록'}" 
+                               data-history-id="${item.id}" 
+                               onchange="appInstance.updateHistoryName('${item.id}', this.value)">
+                        <button class="btn-delete-history" onclick="appInstance.deleteHistory('${item.id}')" title="삭제">🗑</button>
+                    </div>
+                    <div class="history-manage-meta">
+                        <span class="history-date">📅 ${item.date}</span>
+                        <span class="history-time">⏰ ${startTime} ~ ${endTime}</span>
+                        ${item.duration ? `<span class="history-duration">⏱ ${item.duration}분</span>` : ''}
+                    </div>
+                    <div class="history-manage-text">${item.text}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // 기록 이름 업데이트
+    updateHistoryName(historyId, newName) {
+        const historyIndex = this.model.history.findIndex(h => h.id === historyId);
+        if (historyIndex !== -1) {
+            this.model.history[historyIndex].name = newName || `전사 기록 ${this.model.history[historyIndex].time}`;
+            this.updateModel({ history: [...this.model.history] });
+            this.saveHistoryToStorage();
+            this.updateHistoryDisplay();
+        }
+    }
+
+    // 기록 삭제
+    deleteHistory(historyId) {
+        if (confirm('이 기록을 삭제하시겠습니까?')) {
+            this.model.history = this.model.history.filter(h => h.id !== historyId);
+            this.updateModel({ history: [...this.model.history] });
+            this.saveHistoryToStorage();
+            this.updateHistoryDisplay();
+            this.renderHistoryManageList();
+        }
     }
 
     updateStatusDisplay() {
@@ -1362,6 +1715,7 @@ async function waitForWebLLMAndInit() {
     }
     
     appInstance = new TranscriptionApp();
+    window.appInstance = appInstance; // 전역으로 노출
 }
 
 initApp();
