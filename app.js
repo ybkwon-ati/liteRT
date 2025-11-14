@@ -577,12 +577,16 @@ class TranscriptionApp {
 
             if (modelStatusText) modelStatusText.textContent = '모델 다운로드 중...';
             
+            // WebLLM 공식 문서 방법 사용
+            // https://web.dev/articles/ai-chatbot-webllm?hl=ko
+            // 모델이 다운로드된 후 create() 메서드로 모델 추론 실행
             this.llmEngine = await WebLLMEngine.create({
                 model: selectedModelId,
                 initProgressCallback: (report) => {
                     console.log('모델 로딩 진행:', report);
-                    const progress = report.progress || 0;
+                    const progress = report.progress !== undefined ? report.progress : 0;
                     
+                    // 진행률 바 업데이트
                     if (modelProgress) {
                         modelProgress.style.width = (progress * 100) + '%';
                     }
@@ -590,6 +594,7 @@ class TranscriptionApp {
                         modelProgressText.textContent = Math.round(progress * 100) + '%';
                     }
                     if (modelStatusText) {
+                        // 텍스트 상태 메시지가 있으면 우선 표시
                         if (report.text) {
                             modelStatusText.textContent = report.text;
                         } else {
@@ -598,6 +603,8 @@ class TranscriptionApp {
                     }
                 }
             });
+            
+            console.log('WebLLM 모델 로드 완료:', selectedModelId);
 
             this.currentModelId = selectedModelId;
             this.isModelReady = true;
