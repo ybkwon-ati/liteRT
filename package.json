@@ -19,7 +19,5 @@
   "devDependencies": {
     "http-server": "^14.1.1"
   },
-  "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.79"
-  }
+  "dependencies": {}
 }
